@@ -1,6 +1,8 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, mem::transmute, mem::MaybeUninit};
 
 use aoc_runner_derive::aoc;
+
+use crate::Assume as _;
 
 /// Number of datapoints expected
 const DATA_COUNT: usize = if cfg!(test) { 6 } else { 1_000 };
@@ -15,15 +17,15 @@ const LINE_LENGTH: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT + NUM_DIGIT_COUNT;
 const NUM2_START: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT;
 
 #[aoc(day1, part1)]
-pub fn part1(input: &str) -> u32 {
+pub fn part1(input: &str) -> i32 {
     let (mut left, mut right) = input_handling(input);
     left.sort_unstable();
     right.sort_unstable();
 
     left.into_iter()
         .zip(right)
-        .map(|(left, right)| (left as i32 - right as i32).unsigned_abs())
-        .sum::<u32>()
+        .map(|(left, right)| (left as i32 - right as i32).abs())
+        .sum::<i32>()
 }
 
 #[aoc(day1, part2)]
@@ -36,8 +38,8 @@ pub fn part2(input: &str) -> u32 {
 
     let mut similarity = 0;
     let mut curr_left_similarity = 0;
-    let mut curr_left = left.next().unwrap();
-    let mut curr_right = right.next().unwrap();
+    let mut curr_left = left.next().assume();
+    let mut curr_right = right.next().assume();
 
     loop {
         match curr_left.cmp(&curr_right) {
@@ -78,20 +80,28 @@ pub fn part2(input: &str) -> u32 {
 fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     let input = input.as_bytes();
 
-    let mut left = [0; DATA_COUNT];
-    let mut right = [0; DATA_COUNT];
+    let mut left = [const { MaybeUninit::uninit() }; DATA_COUNT];
+    let mut right = [const { MaybeUninit::uninit() }; DATA_COUNT];
 
     for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
-        let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap();
-        let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).unwrap();
+        let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).assume();
+        let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).assume();
 
-        left[index] = num1;
-        right[index] = num2;
+        left[index].write(num1);
+        right[index].write(num2);
     }
 
-    (left, right)
+    unsafe {
+        transmute::<
+            (
+                [std::mem::MaybeUninit<u32>; DATA_COUNT],
+                [std::mem::MaybeUninit<u32>; DATA_COUNT],
+            ),
+            ([u32; DATA_COUNT], [u32; DATA_COUNT]),
+        >((left, right))
+    }
 }
 
 #[cfg(test)]
