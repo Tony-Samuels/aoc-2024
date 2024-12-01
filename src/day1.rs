@@ -73,20 +73,20 @@ pub fn part2(input: &str) -> u32 {
     similarity
 }
 
-fn input_handling(input: &str) -> (Vec<u32>, Vec<u32>) {
+fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     let input = input.as_bytes();
 
-    let mut left = Vec::with_capacity(1_000);
-    let mut right = Vec::with_capacity(1_000);
+    let mut left = [0; DATA_COUNT];
+    let mut right = [0; DATA_COUNT];
 
-    for line in input.chunks_exact(LINE_LENGTH + 1) {
+    for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
         let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap();
         let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).unwrap();
 
-        left.push(num1);
-        right.push(num2);
+        left[index] = num1;
+        right[index] = num2;
     }
 
     (left, right)
