@@ -1,18 +1,25 @@
 use aoc_runner_derive::aoc;
+use atoi_simd::parse;
 
+// Perf notes:
+// - Using `u32` and abs_diff is ~20-30% slower
+// - Using `&str`, `parse` and `str::split` is ~20-30% slower
 #[aoc(day1, part1)]
 pub fn part1(input: &str) -> i32 {
+    let input = input.as_bytes();
+
     let left = &mut Vec::with_capacity(1_000);
     let right = &mut Vec::with_capacity(1_000);
 
-    for line in input.lines() {
-        let mut iter = line.split_ascii_whitespace();
-        let num1: i32 = iter.next().unwrap().parse().unwrap();
-        let num2: i32 = iter.next().unwrap().parse().unwrap();
+    for line in input.split(|&c| c == b'\n') {
+        let iter = &mut line.split(|&c| c == b' ');
+        let num1: i32 = parse(iter.next().unwrap()).unwrap();
+        let num2: i32 = parse(iter.skip_while(|s| s.is_empty()).next().unwrap()).unwrap();
 
         debug_assert!(
             iter.next().is_none(),
-            "Expected line to have only two numbers: {line}"
+            "Expected line to have only two numbers: {}",
+            std::str::from_utf8(line).unwrap()
         );
 
         left.push(num1);
