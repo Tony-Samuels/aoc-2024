@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use aoc_runner_derive::aoc;
 
 /// Number of datapoints expected
@@ -27,13 +29,48 @@ pub fn part1(input: &str) -> u32 {
 #[aoc(day1, part2)]
 pub fn part2(input: &str) -> u32 {
     let (left, right) = input_handling(input);
+    let left = &mut left.into_iter();
+    let right = &mut right.into_iter();
 
-    let mut map = [0; 10_usize.pow(NUM_DIGIT_COUNT as u32) - 1];
-    for right in right {
-        map[right as usize] += 1;
+    let mut similarity = 0;
+    let mut curr_left_similarity = 0;
+    let mut curr_left = left.next().unwrap();
+    let mut curr_right = right.next().unwrap();
+
+    loop {
+        match curr_left.cmp(&curr_right) {
+            Ordering::Less => {
+                similarity += curr_left_similarity;
+                if let Some(new_left) = left.next() {
+                    if curr_left != new_left {
+                        curr_left_similarity = 0;
+                    }
+                    curr_left = new_left;
+                } else {
+                    curr_left_similarity = 0;
+                    break;
+                }
+            }
+            Ordering::Greater => {
+                if let Some(new_right) = right.next() {
+                    curr_right = new_right;
+                } else {
+                    break;
+                }
+            }
+            Ordering::Equal => {
+                curr_left_similarity += curr_left;
+                if let Some(new_right) = right.next() {
+                    curr_right = new_right;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
-    left.into_iter().map(|left| left * map[left as usize]).sum()
+    similarity += curr_left * curr_left_similarity;
+    similarity
 }
 
 fn input_handling(input: &str) -> (Vec<u32>, Vec<u32>) {
