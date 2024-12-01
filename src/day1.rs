@@ -2,6 +2,8 @@ use std::{cmp::Ordering, mem::transmute, mem::MaybeUninit};
 
 use aoc_runner_derive::aoc;
 
+use crate::Assume as _;
+
 /// Number of datapoints expected
 const DATA_COUNT: usize = if cfg!(test) { 6 } else { 1_000 };
 /// Number of digits for each pair of numbers in each datapoint
@@ -36,8 +38,8 @@ pub fn part2(input: &str) -> u32 {
 
     let mut similarity = 0;
     let mut curr_left_similarity = 0;
-    let mut curr_left = unsafe { left.next().unwrap_unchecked() };
-    let mut curr_right = unsafe { right.next().unwrap_unchecked() };
+    let mut curr_left = left.next().assume();
+    let mut curr_right = right.next().assume();
 
     loop {
         match curr_left.cmp(&curr_right) {
@@ -84,9 +86,8 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
-        let num1: u32 =
-            unsafe { atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap_unchecked() };
-        let num2: u32 = unsafe { atoi_simd::parse_pos(&line[NUM2_START..]).unwrap_unchecked() };
+        let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).assume();
+        let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).assume();
 
         left[index].write(num1);
         right[index].write(num2);
