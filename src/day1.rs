@@ -36,8 +36,8 @@ pub fn part2(input: &str) -> u32 {
 
     let mut similarity = 0;
     let mut curr_left_similarity = 0;
-    let mut curr_left = left.next().unwrap();
-    let mut curr_right = right.next().unwrap();
+    let mut curr_left = unsafe { left.next().unwrap_unchecked() };
+    let mut curr_right = unsafe { right.next().unwrap_unchecked() };
 
     loop {
         match curr_left.cmp(&curr_right) {
@@ -84,8 +84,9 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
-        let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap();
-        let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).unwrap();
+        let num1: u32 =
+            unsafe { atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap_unchecked() };
+        let num2: u32 = unsafe { atoi_simd::parse_pos(&line[NUM2_START..]).unwrap_unchecked() };
 
         left[index] = num1;
         right[index] = num2;
