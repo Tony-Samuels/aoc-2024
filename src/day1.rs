@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, mem::transmute, mem::MaybeUninit};
 
 use aoc_runner_derive::aoc;
 
@@ -78,8 +78,8 @@ pub fn part2(input: &str) -> u32 {
 fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     let input = input.as_bytes();
 
-    let mut left = [0; DATA_COUNT];
-    let mut right = [0; DATA_COUNT];
+    let mut left = [const { MaybeUninit::uninit() }; DATA_COUNT];
+    let mut right = [const { MaybeUninit::uninit() }; DATA_COUNT];
 
     for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
         // Strip new line character
@@ -88,11 +88,19 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
             unsafe { atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap_unchecked() };
         let num2: u32 = unsafe { atoi_simd::parse_pos(&line[NUM2_START..]).unwrap_unchecked() };
 
-        left[index] = num1;
-        right[index] = num2;
+        left[index].write(num1);
+        right[index].write(num2);
     }
 
-    (left, right)
+    unsafe {
+        transmute::<
+            (
+                [std::mem::MaybeUninit<u32>; DATA_COUNT],
+                [std::mem::MaybeUninit<u32>; DATA_COUNT],
+            ),
+            ([u32; DATA_COUNT], [u32; DATA_COUNT]),
+        >((left, right))
+    }
 }
 
 #[cfg(test)]
