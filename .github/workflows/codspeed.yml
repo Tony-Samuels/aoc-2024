@@ -3,13 +3,47 @@ name: CodSpeed
 on:
   push:
     branches:
-      - "main" 
+      - "main"
   pull_request:
   # `workflow_dispatch` allows CodSpeed to trigger backtest
   # performance analysis in order to generate initial data.
   workflow_dispatch:
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+      - uses: actions/checkout@v2
+
+      - name: Update local toolchain
+        run: |
+          rustup update
+          rustup component add clippy
+          rustup install nightly
+
+      - name: Toolchain info
+        run: |
+          cargo --version --verbose
+          rustc --version
+          cargo clippy --version
+
+      - name: Lint
+        run: |
+          cd phaser
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+
+      - name: Test
+        run: |
+          cd phaser
+          cargo check
+          cargo test --all
+
+      - name: Build
+        run: |
+          cd phaser
+          cargo build --release
+
+
   benchmarks:
     name: Run benchmarks
     runs-on: ubuntu-latest
