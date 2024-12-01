@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use aoc_runner_derive::aoc;
 
 /// Number of datapoints expected
@@ -16,66 +14,6 @@ const NUM2_START: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT;
 
 #[aoc(day1, part1)]
 pub fn part1(input: &str) -> u32 {
-    let (mut left, mut right) = input_handling(input);
-    left.sort_unstable();
-    right.sort_unstable();
-
-    left.into_iter()
-        .zip(right)
-        .map(|(left, right)| (left as i32 - right as i32).unsigned_abs())
-        .sum::<u32>()
-}
-
-#[aoc(day1, part2)]
-pub fn part2(input: &str) -> u32 {
-    let (mut left, mut right) = input_handling(input);
-    left.sort_unstable();
-    right.sort_unstable();
-    let left = &mut left.into_iter();
-    let right = &mut right.into_iter();
-
-    let mut similarity = 0;
-    let mut curr_left_similarity = 0;
-    let mut curr_left = left.next().unwrap();
-    let mut curr_right = right.next().unwrap();
-
-    loop {
-        match curr_left.cmp(&curr_right) {
-            Ordering::Less => {
-                similarity += curr_left_similarity;
-                if let Some(new_left) = left.next() {
-                    if curr_left != new_left {
-                        curr_left_similarity = 0;
-                    }
-                    curr_left = new_left;
-                } else {
-                    curr_left_similarity = 0;
-                    break;
-                }
-            }
-            Ordering::Greater => {
-                if let Some(new_right) = right.next() {
-                    curr_right = new_right;
-                } else {
-                    break;
-                }
-            }
-            Ordering::Equal => {
-                curr_left_similarity += curr_left;
-                if let Some(new_right) = right.next() {
-                    curr_right = new_right;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-
-    similarity += curr_left * curr_left_similarity;
-    similarity
-}
-
-fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     let input = input.as_bytes();
 
     let mut left = [0; DATA_COUNT];
@@ -91,7 +29,33 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
         right[index] = num2;
     }
 
-    (left, right)
+    left.sort_unstable();
+    right.sort_unstable();
+
+    left.into_iter()
+        .zip(right)
+        .map(|(left, right)| (left as i32 - right as i32).unsigned_abs())
+        .sum::<u32>()
+}
+
+#[aoc(day1, part2)]
+pub fn part2(input: &str) -> u32 {
+    let input = input.as_bytes();
+
+    let mut left = [0; DATA_COUNT];
+    let mut right_count = [0; 10_usize.pow(NUM_DIGIT_COUNT as u32)];
+
+    for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
+        // Strip new line character
+        let line = &line[..LINE_LENGTH];
+        let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap();
+        let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).unwrap();
+
+        left[index] = num1;
+        right_count[num2 as usize] += 1;
+    }
+
+    left.into_iter().map(|i| i * right_count[i as usize]).sum()
 }
 
 #[cfg(test)]
