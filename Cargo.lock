@@ -9,6 +9,7 @@ dependencies = [
  "aoc-runner",
  "aoc-runner-derive",
  "atoi_simd",
+ "memchr",
 ]
 
 [[package]]

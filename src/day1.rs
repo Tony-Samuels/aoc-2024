@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 
 use aoc_runner_derive::aoc;
-use atoi_simd::parse;
+
+#[allow(unused)]
+const N: usize = if cfg!(test) { 6 } else { 1_000 };
 
 // Perf notes:
 // - Using `u32` and `abs_diff` is ~20-30% slower
@@ -16,6 +18,8 @@ pub fn part1(input: &str) -> i32 {
         .sum::<i32>()
 }
 
+// Perf notes:
+// - Using the current pointer solution is ~10-15% faster than a `HashMap` based
 #[aoc(day1, part2)]
 pub fn part2(input: &str) -> i32 {
     let (left, right) = input_handling(input);
@@ -31,7 +35,7 @@ pub fn part2(input: &str) -> i32 {
     loop {
         match curr_left.cmp(&curr_right) {
             Ordering::Less => {
-                similarity += curr_left * curr_left_similarity;
+                similarity += curr_left_similarity;
 
                 if let Some(new_left) = left.next() {
                     if curr_left != new_left {
@@ -51,7 +55,7 @@ pub fn part2(input: &str) -> i32 {
                 }
             }
             Ordering::Equal => {
-                curr_left_similarity += 1;
+                curr_left_similarity += curr_left;
                 if let Some(new_right) = right.next() {
                     curr_right = new_right;
                 } else {
@@ -67,9 +71,10 @@ pub fn part2(input: &str) -> i32 {
 }
 
 // Perf notes:
-// - Using `unwrap` of `unreachable_unchecked` is faster!
+// - Using `unwrap` instead of `unreachable_unchecked` is faster!
 //     - 3-10% depending on where it's used
 // - Using `unwrap` and `unreachable` has the same perf (as expected)
+// - Using an array instead of a `Vec` is ~10% slower
 fn input_handling(input: &str) -> (Vec<i32>, Vec<i32>) {
     let input = input.as_bytes();
 
@@ -77,15 +82,9 @@ fn input_handling(input: &str) -> (Vec<i32>, Vec<i32>) {
     let mut right = Vec::with_capacity(1_000);
 
     for line in input.split(|&c| c == b'\n') {
-        let iter = &mut line.split(|&c| c == b' ');
-        let num1: i32 = parse(iter.next().unwrap()).unwrap();
-        let num2: i32 = parse(iter.skip_while(|s| s.is_empty()).next().unwrap()).unwrap();
-
-        debug_assert!(
-            iter.next().is_none(),
-            "Expected line to have only two numbers: {}",
-            std::str::from_utf8(line).unwrap()
-        );
+        let position = line.len() - line.iter().rev().position(|&c| c == b' ').unwrap();
+        let num1: i32 = atoi_simd::parse_any_pos(&line[..position]).unwrap().0;
+        let num2: i32 = atoi_simd::parse_pos(&line[position..]).unwrap();
 
         left.push(num1);
         right.push(num2);
