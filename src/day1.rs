@@ -4,8 +4,8 @@ use aoc_runner_derive::aoc;
 use atoi_simd::parse;
 
 // Perf notes:
-// - Using `u32` and abs_diff is ~20-30% slower
-// - Using `&str`, `parse` and `str::split` is ~20-30% slower
+// - Using `u32` and `abs_diff` is ~20-30% slower
+// - Using `&[u8]` instead of `&str` and `str` functions is ~20-30% faster
 #[aoc(day1, part1)]
 pub fn part1(input: &str) -> i32 {
     let (left, right) = input_handling(input);
@@ -66,6 +66,10 @@ pub fn part2(input: &str) -> i32 {
     similarity
 }
 
+// Perf notes:
+// - Using `unwrap` of `unreachable_unchecked` is faster!
+//     - 3-10% depending on where it's used
+// - Using `unwrap` and `unreachable` has the same perf (as expected)
 fn input_handling(input: &str) -> (Vec<i32>, Vec<i32>) {
     let input = input.as_bytes();
 
