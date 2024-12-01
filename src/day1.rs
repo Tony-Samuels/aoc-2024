@@ -8,6 +8,7 @@ const SEP_CHAR_COUNT: usize = 3;
 // Perf notes:
 // - Using `u32` and `abs_diff` is ~20-30% slower
 // - Using `&[u8]` instead of `&str` and `str` functions is ~20-30% faster
+// - Using indexing instead of iterating makes no difference
 #[aoc(day1, part1)]
 pub fn part1(input: &str) -> i32 {
     let (left, right) = input_handling(input);
@@ -85,7 +86,7 @@ fn input_handling(input: &str) -> (Vec<i32>, Vec<i32>) {
     const LINE_LENGTH: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT + NUM_DIGIT_COUNT;
     const NUM2_START: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT;
 
-    for line in input.chunks(LINE_LENGTH + 1) {
+    for line in input.chunks_exact(LINE_LENGTH + 1) {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
         let num1: i32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).unwrap();
@@ -110,7 +111,8 @@ mod tests {
 2   5
 1   3
 3   9
-3   3";
+3   3
+";
 
     #[test]
     fn example_p1() {
