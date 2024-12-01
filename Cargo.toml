@@ -15,4 +15,3 @@ harness = false
 
 [dev-dependencies]
 criterion = { package = "codspeed-criterion-compat", version = "2" }
-solution = { path = "." }
