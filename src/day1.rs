@@ -22,13 +22,15 @@ pub fn part1(input: &str) -> u32 {
 
     left.into_iter()
         .zip(right)
-        .map(|(left, right)| (left as i32 - right as i32).abs() as u32)
+        .map(|(left, right)| (left as i32 - right as i32).unsigned_abs())
         .sum::<u32>()
 }
 
 #[aoc(day1, part2)]
 pub fn part2(input: &str) -> u32 {
-    let (left, right) = input_handling(input);
+    let (mut left, mut right) = input_handling(input);
+    left.sort_unstable();
+    right.sort_unstable();
     let left = &mut left.into_iter();
     let right = &mut right.into_iter();
 
