@@ -17,15 +17,15 @@ const LINE_LENGTH: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT + NUM_DIGIT_COUNT;
 const NUM2_START: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT;
 
 #[aoc(day1, part1)]
-pub fn part1(input: &str) -> u32 {
+pub fn part1(input: &str) -> i32 {
     let (mut left, mut right) = input_handling(input);
     left.sort_unstable();
     right.sort_unstable();
 
     left.into_iter()
         .zip(right)
-        .map(|(left, right)| (left as i32 - right as i32).unsigned_abs())
-        .sum::<u32>()
+        .map(|(left, right)| (left as i32 - right as i32).abs())
+        .sum::<i32>()
 }
 
 #[aoc(day1, part2)]
