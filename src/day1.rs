@@ -86,8 +86,8 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
-        let num1: u32 = atoi_simd::parse_pos(&line[..NUM_DIGIT_COUNT]).assume();
-        let num2: u32 = atoi_simd::parse_pos(&line[NUM2_START..]).assume();
+        let num1: u32 = parse_pos(&line[..NUM_DIGIT_COUNT]);
+        let num2: u32 = parse_pos(&line[NUM2_START..]);
 
         left[index].write(num1);
         right[index].write(num2);
@@ -102,6 +102,11 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
             ([u32; DATA_COUNT], [u32; DATA_COUNT]),
         >((left, right))
     }
+}
+
+// For profiling
+fn parse_pos(s: &[u8]) -> u32 {
+    atoi_simd::parse_pos(s).assume()
 }
 
 #[cfg(test)]
