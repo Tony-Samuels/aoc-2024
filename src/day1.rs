@@ -44,14 +44,17 @@ pub fn part2(input: &str) -> u32 {
     loop {
         match curr_left.cmp(&curr_right) {
             Ordering::Less => {
-                similarity += curr_left_similarity;
-                if let Some(new_left) = left.next() {
-                    if curr_left != new_left {
-                        curr_left_similarity = 0;
-                    }
+                let mut new_left = Some(curr_left);
+                while new_left == Some(curr_left) {
+                    similarity += curr_left_similarity;
+                    new_left = left.next();
+                }
+
+                curr_left_similarity = 0;
+
+                if let Some(new_left) = new_left {
                     curr_left = new_left;
                 } else {
-                    curr_left_similarity = 0;
                     break;
                 }
             }
@@ -73,8 +76,7 @@ pub fn part2(input: &str) -> u32 {
         }
     }
 
-    similarity += curr_left * curr_left_similarity;
-    similarity
+    similarity + curr_left_similarity
 }
 
 fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
@@ -83,25 +85,29 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     let mut left = [const { MaybeUninit::uninit() }; DATA_COUNT];
     let mut right = [const { MaybeUninit::uninit() }; DATA_COUNT];
 
-    for (index, line) in input.chunks_exact(LINE_LENGTH + 1).enumerate() {
+    let chunks = &mut input.chunks_exact(LINE_LENGTH + 1);
+
+    for (index, line) in chunks.enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
-        let num1: u32 = parse_pos(&line[..NUM_DIGIT_COUNT]);
-        let num2: u32 = parse_pos(&line[NUM2_START..]);
+        let num1 = parse_pos(&line[..NUM_DIGIT_COUNT]);
+        let num2 = parse_pos(&line[NUM2_START..]);
 
         left[index].write(num1);
         right[index].write(num2);
     }
 
-    unsafe {
-        transmute::<
-            (
-                [std::mem::MaybeUninit<u32>; DATA_COUNT],
-                [std::mem::MaybeUninit<u32>; DATA_COUNT],
-            ),
-            ([u32; DATA_COUNT], [u32; DATA_COUNT]),
-        >((left, right))
+    // End '\n' might be stripped
+    let remainder: Result<[_; LINE_LENGTH], _> = chunks.remainder().try_into();
+    if let Ok(line) = remainder {
+        let num1 = parse_pos(&line[..NUM_DIGIT_COUNT]);
+        let num2 = parse_pos(&line[NUM2_START..]);
+
+        left.last_mut().assume().write(num1);
+        right.last_mut().assume().write(num2);
     }
+
+    unsafe { transmute::<(_, _), (_, _)>((left, right)) }
 }
 
 // For profiling
@@ -118,8 +124,7 @@ mod tests {
 2   5
 1   3
 3   9
-3   3
-";
+3   3";
 
     #[test]
     fn example_p1() {
