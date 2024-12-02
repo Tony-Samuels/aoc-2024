@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    hint::unreachable_unchecked,
     mem::MaybeUninit,
     simd::{num::SimdInt as _, Simd},
 };
@@ -19,6 +20,12 @@ const SEP_CHAR_COUNT: usize = 3;
 const LINE_LENGTH: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT + NUM_DIGIT_COUNT;
 /// The position in each line where the second of the numbers starts
 const NUM2_START: usize = NUM_DIGIT_COUNT + SEP_CHAR_COUNT;
+
+// SWAR
+const ALL_0: u64 = 0x3030303030303030;
+const MASK: u64 = 0x000000FF000000FF;
+const MUL1: u64 = 0x000F424000000064;
+const MUL2: u64 = 0x0000271000000001;
 
 #[aoc(day1, part1)]
 pub fn part1(input: &str) -> i32 {
@@ -46,7 +53,7 @@ fn simd_count(left: &[i32; DATA_COUNT], right: &[i32; DATA_COUNT]) -> i32 {
 
 // For profiling
 fn iter_count(left: &[i32; DATA_COUNT], right: &[i32; DATA_COUNT]) -> i32 {
-    left.into_iter()
+    left.iter()
         .zip(right)
         .skip((DATA_COUNT / 64) * 64)
         .map(|(left, right)| (left - right).abs())
@@ -115,8 +122,8 @@ fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
     for (index, line) in chunks.enumerate() {
         // Strip new line character
         let line = &line[..LINE_LENGTH];
-        let num1 = parse_pos(&line[..NUM_DIGIT_COUNT]);
-        let num2 = parse_pos(&line[NUM2_START..]);
+        let num1 = parse(&line[..NUM_DIGIT_COUNT]);
+        let num2 = parse(&line[NUM2_START..]);
 
         left[index].write(num1);
         right[index].write(num2);
@@ -125,8 +132,8 @@ fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
     // End '\n' might be stripped
     let remainder: Option<[_; LINE_LENGTH]> = chunks.remainder().try_into().ok();
     if let Some(line) = remainder {
-        let num1 = parse_pos(&line[..NUM_DIGIT_COUNT]);
-        let num2 = parse_pos(&line[NUM2_START..]);
+        let num1 = parse(&line[..NUM_DIGIT_COUNT]);
+        let num2 = parse(&line[NUM2_START..]);
 
         left.last_mut().assume().write(num1);
         right.last_mut().assume().write(num2);
@@ -146,14 +153,24 @@ fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
     }
 }
 
-// For profiling
-fn parse_pos(s: &[u8]) -> i32 {
-    atoi_simd::parse_pos(s).assume()
+fn parse(s: &[u8]) -> i32 {
+    let arr = match s {
+        [num] => [b'0', b'0', b'0', b'0', b'0', b'0', b'0', *num],
+        [n1, n2, n3, n4, n5] => [b'0', b'0', b'0', *n1, *n2, *n3, *n4, *n5],
+        _ => unsafe { unreachable_unchecked() },
+    };
+
+    let mut val = u64::from_le_bytes(arr);
+    val -= ALL_0;
+    val = (val * 10) + (val >> 8);
+    val = ((val & MASK).wrapping_mul(MUL1) + ((val >> 16) & MASK).wrapping_mul(MUL2)) >> 32;
+
+    val as i32
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{part1, part2};
+    use super::*;
 
     const INPUT: &str = "3   4
 4   3
@@ -170,5 +187,20 @@ mod tests {
     #[test]
     fn example_p2() {
         assert_eq!(part2(INPUT), 31)
+    }
+
+    #[test]
+    fn swar_test() {
+        for (input, result) in [
+            ([b'0', b'0', b'0', b'0', b'1', b'2', b'3', b'4'], 1234),
+            ([b'0', b'0', b'0', b'0', b'0', b'0', b'0', b'1'], 1),
+        ] {
+            let mut val = u64::from_le_bytes(input);
+            val -= ALL_0;
+            val = (val * 10) + (val >> 8);
+            val = ((val & MASK).wrapping_mul(MUL1) + ((val >> 16) & MASK).wrapping_mul(MUL2)) >> 32;
+
+            assert_eq!(val, result);
+        }
     }
 }
