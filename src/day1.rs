@@ -1,13 +1,12 @@
 use std::{
     cmp::Ordering,
-    hint::unreachable_unchecked,
     mem::MaybeUninit,
     simd::{num::SimdInt as _, LaneCount, Simd, SupportedLaneCount},
 };
 
 use aoc_runner_derive::aoc;
 
-use crate::Assume as _;
+use crate::{Assume as _, Unreachable};
 
 /// Number of datapoints expected
 const DATA_COUNT: usize = 1_000;
@@ -112,10 +111,9 @@ pub fn part2(input: &str) -> i32 {
 }
 
 fn input_handling_inner<'a, const N: usize>(
-    left: &mut [MaybeUninit<i32>; DATA_COUNT],
-    right: &mut [MaybeUninit<i32>; DATA_COUNT],
+    left: &mut [MaybeUninit<i32>; N],
+    right: &mut [MaybeUninit<i32>; N],
     lines: impl Iterator<Item = &'a [u8]>,
-    offset: usize,
 ) where
     LaneCount<N>: SupportedLaneCount,
 {
@@ -130,22 +128,15 @@ fn input_handling_inner<'a, const N: usize>(
     }
 
     let left_arr = unsafe { MaybeUninit::array_assume_init(left_arr) };
-    let right_arr = unsafe { MaybeUninit::array_assume_init(right_arr) };
-
-    for (j, val) in parse_simd::<N>(Simd::from(left_arr))
-        .as_array()
-        .iter()
-        .enumerate()
-    {
-        left[offset + j].write(*val as i32);
+    let left_simd = parse_simd::<N>(Simd::from(left_arr));
+    for (el, dest) in left_simd.to_array().iter().zip(left) {
+        dest.write(*el as i32);
     }
 
-    for (j, val) in parse_simd::<N>(Simd::from(right_arr))
-        .as_array()
-        .iter()
-        .enumerate()
-    {
-        right[offset + j].write(*val as i32);
+    let right_arr = unsafe { MaybeUninit::array_assume_init(right_arr) };
+    let right_simd = parse_simd::<N>(Simd::from(right_arr));
+    for (el, dest) in right_simd.to_array().iter().zip(right) {
+        dest.write(*el as i32);
     }
 }
 
@@ -158,14 +149,26 @@ fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
     let mut lines = input.chunks(LINE_LENGTH + 1);
     let mut offset = 0;
     for _ in 0..(DATA_COUNT / 64) {
-        input_handling_inner::<64>(&mut left, &mut right, &mut lines, offset);
+        input_handling_inner::<64>(
+            (&mut left[offset..(offset + 64)]).try_into().assume(),
+            (&mut right[offset..(offset + 64)]).try_into().assume(),
+            &mut lines,
+        );
         offset += 64;
     }
 
-    input_handling_inner::<32>(&mut left, &mut right, &mut lines, offset);
+    input_handling_inner::<32>(
+        (&mut left[offset..(offset + 32)]).try_into().assume(),
+        (&mut right[offset..(offset + 32)]).try_into().assume(),
+        &mut lines,
+    );
     offset += 32;
 
-    input_handling_inner::<8>(&mut left, &mut right, &mut lines, offset);
+    input_handling_inner::<8>(
+        (&mut left[offset..]).try_into().assume(),
+        (&mut right[offset..]).try_into().assume(),
+        &mut lines,
+    );
     offset += 8;
 
     debug_assert!(
@@ -183,10 +186,8 @@ fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
 
 fn u64_from_slice(s: &[u8]) -> u64 {
     let arr = match s {
-        #[cfg(test)]
-        [num] => [b'0', b'0', b'0', b'0', b'0', b'0', b'0', *num],
         [n1, n2, n3, n4, n5] => [b'0', b'0', b'0', *n1, *n2, *n3, *n4, *n5],
-        _ => unsafe { unreachable_unchecked() },
+        _ => Unreachable.assume(),
     };
 
     u64::from_le_bytes(arr)
