@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, mem::MaybeUninit};
+use std::{
+    cmp::Ordering,
+    mem::MaybeUninit,
+    simd::{num::SimdInt as _, Simd},
+};
 
 use aoc_runner_derive::aoc;
 
@@ -22,14 +26,27 @@ pub fn part1(input: &str) -> i32 {
     left.sort_unstable();
     right.sort_unstable();
 
-    left.into_iter()
+    let div_64 = left.len() / 64;
+    let mut sum = 0;
+
+    for count in 0..div_64 {
+        let min = count * 64;
+        let left = Simd::<_, 64>::from_slice(&left[min..]);
+        let right = Simd::<_, 64>::from_slice(&right[min..]);
+
+        sum += (left - right).abs().reduce_sum()
+    }
+
+    sum + left
+        .into_iter()
         .zip(right)
-        .map(|(left, right)| (left as i32 - right as i32).abs())
+        .skip(div_64 * 64)
+        .map(|(left, right)| (left - right).abs())
         .sum::<i32>()
 }
 
 #[aoc(day1, part2)]
-pub fn part2(input: &str) -> u32 {
+pub fn part2(input: &str) -> i32 {
     let (mut left, mut right) = input_handling(input);
     left.sort_unstable();
     right.sort_unstable();
@@ -79,7 +96,7 @@ pub fn part2(input: &str) -> u32 {
     similarity + curr_left_similarity
 }
 
-fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
+fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
     let input = input.as_bytes();
 
     let mut left = [MaybeUninit::uninit(); DATA_COUNT];
@@ -109,7 +126,7 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
         debug_assert!(
             chunks.remainder().is_empty(),
             "Remainder: {}",
-            std::str::from_utf8(&chunks.remainder()).unwrap()
+            std::str::from_utf8(chunks.remainder()).unwrap()
         );
     }
 
@@ -122,7 +139,7 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
 }
 
 // For profiling
-fn parse_pos(s: &[u8]) -> u32 {
+fn parse_pos(s: &[u8]) -> i32 {
     atoi_simd::parse_pos(s).assume()
 }
 
