@@ -1,7 +1,10 @@
 use std::{
     cmp::Ordering,
     mem::MaybeUninit,
-    simd::{num::SimdInt as _, LaneCount, Simd, SupportedLaneCount},
+    simd::{
+        num::{SimdInt as _, SimdUint as _},
+        LaneCount, Mask, Simd, SupportedLaneCount,
+    },
 };
 
 use aoc_runner_derive::aoc;
@@ -128,16 +131,12 @@ fn input_handling_inner<'a, const N: usize>(
     }
 
     let left_arr = unsafe { MaybeUninit::array_assume_init(left_arr) };
-    let left_simd = parse_simd::<N>(Simd::from(left_arr));
-    for (el, dest) in left_simd.to_array().iter().zip(left) {
-        dest.write(*el as i32);
-    }
+    let left_simd = parse_simd::<N>(Simd::from(left_arr)).cast::<i32>();
+    unsafe { left_simd.store_select_ptr(left.as_mut_ptr().cast(), Mask::splat(true)) };
 
     let right_arr = unsafe { MaybeUninit::array_assume_init(right_arr) };
-    let right_simd = parse_simd::<N>(Simd::from(right_arr));
-    for (el, dest) in right_simd.to_array().iter().zip(right) {
-        dest.write(*el as i32);
-    }
+    let right_simd = parse_simd::<N>(Simd::from(right_arr)).cast::<i32>();
+    unsafe { right_simd.store_select_ptr(right.as_mut_ptr().cast(), Mask::splat(true)) };
 }
 
 fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
