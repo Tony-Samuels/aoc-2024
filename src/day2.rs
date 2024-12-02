@@ -110,9 +110,12 @@ fn check_diff(first: i8, second: i8) -> bool {
 pub fn part1(input: &str) -> i32 {
     let mut count = 0;
 
-    for line in input.lines() {
-        let mut iter = line.split_ascii_whitespace().map(parse_2_digits_or_fewer);
-        let first = iter.next().assume();
+    let iter = &mut LineNumIter::new(input);
+    while let Some(first) = {
+        // Ensure the iterator has reached the end of the line (may not have happened due to copying)
+        iter.jump_to_next_line();
+        iter.next()
+    } {
         let second = iter.next().assume();
 
         if !check_diff(first, second) {
