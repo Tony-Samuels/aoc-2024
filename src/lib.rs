@@ -1,3 +1,5 @@
+#![feature(portable_simd, maybe_uninit_array_assume_init)]
+
 use std::{fmt::Debug, hint::unreachable_unchecked};
 
 use aoc_runner_derive::aoc_lib;

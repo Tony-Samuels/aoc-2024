@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, mem::transmute, mem::MaybeUninit};
+use std::{cmp::Ordering, mem::MaybeUninit};
 
 use aoc_runner_derive::aoc;
 
@@ -82,8 +82,8 @@ pub fn part2(input: &str) -> u32 {
 fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     let input = input.as_bytes();
 
-    let mut left = [const { MaybeUninit::uninit() }; DATA_COUNT];
-    let mut right = [const { MaybeUninit::uninit() }; DATA_COUNT];
+    let mut left = [MaybeUninit::uninit(); DATA_COUNT];
+    let mut right = [MaybeUninit::uninit(); DATA_COUNT];
 
     let chunks = &mut input.chunks_exact(LINE_LENGTH + 1);
 
@@ -98,16 +98,27 @@ fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
     }
 
     // End '\n' might be stripped
-    let remainder: Result<[_; LINE_LENGTH], _> = chunks.remainder().try_into();
-    if let Ok(line) = remainder {
+    let remainder: Option<[_; LINE_LENGTH]> = chunks.remainder().try_into().ok();
+    if let Some(line) = remainder {
         let num1 = parse_pos(&line[..NUM_DIGIT_COUNT]);
         let num2 = parse_pos(&line[NUM2_START..]);
 
         left.last_mut().assume().write(num1);
         right.last_mut().assume().write(num2);
+    } else {
+        debug_assert!(
+            chunks.remainder().is_empty(),
+            "Remainder: {}",
+            std::str::from_utf8(&chunks.remainder()).unwrap()
+        );
     }
 
-    unsafe { transmute::<(_, _), (_, _)>((left, right)) }
+    unsafe {
+        (
+            MaybeUninit::array_assume_init(left),
+            MaybeUninit::array_assume_init(right),
+        )
+    }
 }
 
 // For profiling
