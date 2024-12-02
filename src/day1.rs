@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     hint::unreachable_unchecked,
     mem::MaybeUninit,
-    simd::{num::SimdInt as _, Simd},
+    simd::{num::SimdInt as _, LaneCount, Simd, SupportedLaneCount},
 };
 
 use aoc_runner_derive::aoc;
@@ -10,9 +10,9 @@ use aoc_runner_derive::aoc;
 use crate::Assume as _;
 
 /// Number of datapoints expected
-const DATA_COUNT: usize = if cfg!(test) { 6 } else { 1_000 };
+const DATA_COUNT: usize = 1_000;
 /// Number of digits for each pair of numbers in each datapoint
-const NUM_DIGITS: usize = if cfg!(test) { 1 } else { 5 };
+const NUM_DIGITS: usize = 5;
 /// Number of characters separating the pair of numbers in each datapoint
 const SEP_CHAR_COUNT: usize = 3;
 
@@ -111,65 +111,67 @@ pub fn part2(input: &str) -> i32 {
     similarity + curr_left_similarity
 }
 
+fn input_handling_inner<'a, const N: usize>(
+    left: &mut [MaybeUninit<i32>; DATA_COUNT],
+    right: &mut [MaybeUninit<i32>; DATA_COUNT],
+    lines: impl Iterator<Item = &'a [u8]>,
+    offset: usize,
+) where
+    LaneCount<N>: SupportedLaneCount,
+{
+    let mut left_arr = MaybeUninit::uninit_array();
+    let mut right_arr = MaybeUninit::uninit_array();
+
+    for (index, line) in lines.take(N).enumerate() {
+        // Strip new line character
+        let line = &line[..LINE_LENGTH];
+        left_arr[index].write(u64_from_slice(&line[..NUM_DIGITS]));
+        right_arr[index].write(u64_from_slice(&line[NUM2_START..]));
+    }
+
+    let left_arr = unsafe { MaybeUninit::array_assume_init(left_arr) };
+    let right_arr = unsafe { MaybeUninit::array_assume_init(right_arr) };
+
+    for (j, val) in parse_simd::<N>(Simd::from(left_arr))
+        .as_array()
+        .iter()
+        .enumerate()
+    {
+        left[offset + j].write(*val as i32);
+    }
+
+    for (j, val) in parse_simd::<N>(Simd::from(right_arr))
+        .as_array()
+        .iter()
+        .enumerate()
+    {
+        right[offset + j].write(*val as i32);
+    }
+}
+
 fn input_handling(input: &str) -> ([i32; DATA_COUNT], [i32; DATA_COUNT]) {
     let input = input.as_bytes();
 
     let mut left = MaybeUninit::uninit_array();
     let mut right = MaybeUninit::uninit_array();
 
-    let chunks = &mut input.chunks_exact((LINE_LENGTH + 1) * 64);
-    for (i, data) in chunks.enumerate() {
-        let mut left_arr = MaybeUninit::uninit_array();
-        let mut right_arr = MaybeUninit::uninit_array();
-
-        let lines = &mut data.chunks_exact(LINE_LENGTH + 1);
-        for (index, line) in lines.enumerate() {
-            // Strip new line character
-            let line = &line[..LINE_LENGTH];
-            left_arr[index].write(u64_from_slice(&line[..NUM_DIGITS]));
-            right_arr[index].write(u64_from_slice(&line[NUM2_START..]));
-        }
-        debug_assert!(
-            lines.remainder().is_empty(),
-            "Unexpected remainder: {}",
-            std::str::from_utf8(lines.remainder()).unwrap()
-        );
-
-        let left_arr = unsafe { MaybeUninit::array_assume_init(left_arr) };
-        let right_arr = unsafe { MaybeUninit::array_assume_init(right_arr) };
-
-        for (j, val) in parse_simd(Simd::from(left_arr))
-            .as_array()
-            .iter()
-            .enumerate()
-        {
-            left[i * 64 + j].write(*val as i32);
-        }
-
-        for (j, val) in parse_simd(Simd::from(right_arr))
-            .as_array()
-            .iter()
-            .enumerate()
-        {
-            right[i * 64 + j].write(*val as i32);
-        }
-        debug_assert!(
-            lines.remainder().is_empty(),
-            "Unexpected remainder: {}",
-            std::str::from_utf8(lines.remainder()).unwrap()
-        );
+    let mut lines = input.chunks(LINE_LENGTH + 1);
+    let mut offset = 0;
+    for _ in 0..(DATA_COUNT / 64) {
+        input_handling_inner::<64>(&mut left, &mut right, &mut lines, offset);
+        offset += 64;
     }
 
-    let elements_parsed = (DATA_COUNT / 64) * 64;
-    for (index, line) in chunks.remainder().chunks(LINE_LENGTH + 1).enumerate() {
-        // Strip new line character, if present
-        let line = &line[..LINE_LENGTH];
-        let num1 = parse_single(u64_from_slice(&line[..NUM_DIGITS]));
-        let num2 = parse_single(u64_from_slice(&line[NUM2_START..]));
+    input_handling_inner::<32>(&mut left, &mut right, &mut lines, offset);
+    offset += 32;
 
-        left[elements_parsed + index].write(num1);
-        right[elements_parsed + index].write(num2);
-    }
+    input_handling_inner::<8>(&mut left, &mut right, &mut lines, offset);
+    offset += 8;
+
+    debug_assert!(
+        offset == 1_000,
+        "Expected to have written 1000 lines, written {offset}"
+    );
 
     unsafe {
         (
@@ -190,15 +192,10 @@ fn u64_from_slice(s: &[u8]) -> u64 {
     u64::from_le_bytes(arr)
 }
 
-fn parse_single(mut val: u64) -> i32 {
-    val -= ALL_0;
-    val = (val * 10) + (val >> 8);
-    val = ((val & MASK).wrapping_mul(MUL1) + ((val >> 16) & MASK).wrapping_mul(MUL2)) >> 32;
-
-    val as i32
-}
-
-fn parse_simd(mut val: Simd<u64, 64>) -> Simd<u64, 64> {
+fn parse_simd<const N: usize>(mut val: Simd<u64, N>) -> Simd<u64, N>
+where
+    LaneCount<N>: SupportedLaneCount,
+{
     val -= Simd::splat(ALL_0);
     val = (val * Simd::splat(10)) + (val >> 8);
     val = ((val & Simd::splat(MASK)) * Simd::splat(MUL1)
@@ -212,29 +209,16 @@ fn parse_simd(mut val: Simd<u64, 64>) -> Simd<u64, 64> {
 mod tests {
     use super::*;
 
-    const INPUT: &str = "3   4
-4   3
-2   5
-1   3
-3   9
-3   3";
+    const INPUT: &str = include_str!("../input/2024/day1.txt");
 
     #[test]
     fn example_p1() {
-        assert_eq!(part1(INPUT), 11);
+        assert_eq!(part1(INPUT), 1938424);
     }
 
     #[test]
     fn example_p2() {
-        assert_eq!(part2(INPUT), 31)
-    }
-
-    #[test]
-    fn single_swar() {
-        for input in ["12345", "1"] {
-            let val = parse_single(u64_from_slice(input.as_bytes()));
-            assert_eq!(val, input.parse::<i32>().unwrap());
-        }
+        assert_eq!(part2(INPUT), 22014209)
     }
 
     #[test]
@@ -242,14 +226,14 @@ mod tests {
         let input = Simd::from_array(std::array::from_fn(|i| {
             u64_from_slice(format!("{i:05}").as_bytes())
         }));
-        for (i, val) in parse_simd(input).as_array().iter().enumerate() {
+        for (i, val) in parse_simd::<64>(input).as_array().iter().enumerate() {
             assert_eq!(*val, i as u64);
         }
 
         let input = Simd::from_array(std::array::from_fn(|i| {
             u64_from_slice(format!("{:05}", i * 1_000).as_bytes())
         }));
-        for (i, val) in parse_simd(input).as_array().iter().enumerate() {
+        for (i, val) in parse_simd::<64>(input).as_array().iter().enumerate() {
             assert_eq!(*val, (i * 1_000) as u64);
         }
     }
