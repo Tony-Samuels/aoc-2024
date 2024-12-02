@@ -13,5 +13,9 @@ memchr = "2"
 name = "day1"
 harness = false
 
+[[bench]]
+name = "day2"
+harness = false
+
 [dev-dependencies]
 criterion = { package = "codspeed-criterion-compat", version = "2" }
