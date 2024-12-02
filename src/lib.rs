@@ -1,4 +1,8 @@
-#![feature(portable_simd, maybe_uninit_array_assume_init)]
+#![feature(
+    portable_simd,
+    maybe_uninit_array_assume_init,
+    maybe_uninit_uninit_array
+)]
 
 use std::{fmt::Debug, hint::unreachable_unchecked};
 
