@@ -26,10 +26,14 @@ pub fn part1(input: &str) -> i32 {
     left.sort_unstable();
     right.sort_unstable();
 
-    let div_64 = left.len() / 64;
+    simd_count(&left, &right) + iter_count(&left, &right)
+}
+
+// For profiling
+fn simd_count(left: &[i32; DATA_COUNT], right: &[i32; DATA_COUNT]) -> i32 {
     let mut sum = 0;
 
-    for count in 0..div_64 {
+    for count in 0..(DATA_COUNT / 64) {
         let min = count * 64;
         let left = Simd::<_, 64>::from_slice(&left[min..]);
         let right = Simd::<_, 64>::from_slice(&right[min..]);
@@ -37,12 +41,16 @@ pub fn part1(input: &str) -> i32 {
         sum += (left - right).abs().reduce_sum()
     }
 
-    sum + left
-        .into_iter()
+    sum
+}
+
+// For profiling
+fn iter_count(left: &[i32; DATA_COUNT], right: &[i32; DATA_COUNT]) -> i32 {
+    left.into_iter()
         .zip(right)
-        .skip(div_64 * 64)
+        .skip((DATA_COUNT / 64) * 64)
         .map(|(left, right)| (left - right).abs())
-        .sum::<i32>()
+        .sum()
 }
 
 #[aoc(day1, part2)]
