@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, mem::transmute, mem::MaybeUninit};
+use std::{mem::transmute, mem::MaybeUninit};
 
 use aoc_runner_derive::aoc;
 
@@ -30,53 +30,14 @@ pub fn part1(input: &str) -> i32 {
 
 #[aoc(day1, part2)]
 pub fn part2(input: &str) -> u32 {
-    let (mut left, mut right) = input_handling(input);
-    left.sort_unstable();
-    right.sort_unstable();
-    let left = &mut left.into_iter();
-    let right = &mut right.into_iter();
+    let (left, right) = input_handling(input);
+    let mut map = [0; 10_usize.pow(NUM_DIGIT_COUNT as u32)];
 
-    let mut similarity = 0;
-    let mut curr_left_similarity = 0;
-    let mut curr_left = left.next().assume();
-    let mut curr_right = right.next().assume();
-
-    loop {
-        match curr_left.cmp(&curr_right) {
-            Ordering::Less => {
-                let mut new_left = Some(curr_left);
-                while new_left == Some(curr_left) {
-                    similarity += curr_left_similarity;
-                    new_left = left.next();
-                }
-
-                curr_left_similarity = 0;
-
-                if let Some(new_left) = new_left {
-                    curr_left = new_left;
-                } else {
-                    break;
-                }
-            }
-            Ordering::Greater => {
-                if let Some(new_right) = right.next() {
-                    curr_right = new_right;
-                } else {
-                    break;
-                }
-            }
-            Ordering::Equal => {
-                curr_left_similarity += curr_left;
-                if let Some(new_right) = right.next() {
-                    curr_right = new_right;
-                } else {
-                    break;
-                }
-            }
-        }
+    for right in right {
+        map[right as usize] += 1;
     }
 
-    similarity + curr_left_similarity
+    left.into_iter().map(|left| left * map[left as usize]).sum()
 }
 
 fn input_handling(input: &str) -> ([u32; DATA_COUNT], [u32; DATA_COUNT]) {
