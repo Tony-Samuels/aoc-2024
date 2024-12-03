@@ -4,17 +4,6 @@ use aoc_runner_derive::aoc;
 
 use crate::{debug, Assume as _, Unreachable};
 
-fn parse_2_digits_or_fewer(s: &str) -> i8 {
-    (match s.as_bytes() {
-        [n] => n - b'0',
-        [a, b] => (a - b'0') * 10 + (b - b'0'),
-        arr => {
-            debug!("Unexpected arr: {arr:?}");
-            Unreachable.assume()
-        }
-    }) as i8
-}
-
 #[derive(Clone, Copy)]
 struct LineNumIter<'a> {
     inner: &'a [u8],
@@ -22,6 +11,7 @@ struct LineNumIter<'a> {
     line_just_ended: bool,
 }
 
+#[cfg(any(test, feature = "debug"))]
 impl std::fmt::Debug for LineNumIter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LineNumIter")
@@ -61,81 +51,91 @@ impl Iterator for LineNumIter<'_> {
     type Item = i8;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.last_ended_line {
-            debug!("Ending line");
-            self.last_ended_line = false;
-            self.line_just_ended = true;
-            return None;
+        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+        unsafe fn inner(iter: &mut LineNumIter<'_>) -> Option<i8> {
+            if iter.last_ended_line {
+                debug!("Ending line");
+                iter.last_ended_line = false;
+                iter.line_just_ended = true;
+                return None;
+            }
+
+            iter.line_just_ended = false;
+
+            let len = iter.inner.len();
+
+            match &iter.inner[..min(3, len)] {
+                [n @ b'0'..=b'9', b' ' | b'\n', ..] | [n @ b'0'..=b'9'] => {
+                    if iter.inner.get(1).is_some_and(|&c| c == b'\n') {
+                        debug!("Line end reached");
+                        iter.last_ended_line = true;
+                    }
+
+                    iter.inner = &iter.inner[min(2, len)..];
+                    Some((n - b'0') as i8)
+                }
+                [n1 @ b'0'..=b'9', n2 @ b'0'..=b'9', b' ' | b'\n']
+                | [n1 @ b'0'..=b'9', n2 @ b'0'..=b'9'] => {
+                    if iter.inner.get(2).is_some_and(|&c| c == b'\n') {
+                        debug!("Line end reached");
+                        iter.last_ended_line = true;
+                    }
+
+                    iter.inner = &iter.inner[min(3, len)..];
+                    Some(((n1 - b'0') * 10 + n2 - b'0') as i8)
+                }
+                [] => None,
+                arr => {
+                    debug!("Unexpected arr: {arr:?}");
+                    Unreachable.assume()
+                }
+            }
         }
 
-        self.line_just_ended = false;
-
-        let len = self.inner.len();
-
-        match &self.inner[..min(3, len)] {
-            [n @ b'0'..=b'9', b' ' | b'\n', ..] | [n @ b'0'..=b'9'] => {
-                if self.inner.get(1).is_some_and(|&c| c == b'\n') {
-                    debug!("Line end reached");
-                    self.last_ended_line = true;
-                }
-
-                self.inner = &self.inner[min(2, len)..];
-                Some((n - b'0') as i8)
-            }
-            [n1 @ b'0'..=b'9', n2 @ b'0'..=b'9', b' ' | b'\n']
-            | [n1 @ b'0'..=b'9', n2 @ b'0'..=b'9'] => {
-                if self.inner.get(2).is_some_and(|&c| c == b'\n') {
-                    debug!("Line end reached");
-                    self.last_ended_line = true;
-                }
-
-                self.inner = &self.inner[min(3, len)..];
-                Some(((n1 - b'0') * 10 + n2 - b'0') as i8)
-            }
-            [] => None,
-            arr => {
-                debug!("Unexpected arr: {arr:?}");
-                Unreachable.assume()
-            }
-        }
+        unsafe { inner(self) }
     }
 }
 
-fn check_diff(first: i8, second: i8) -> bool {
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn check_diff(first: i8, second: i8) -> bool {
     let diff = (first - second).abs();
-    (1..=3).contains(&diff)
+    diff == 1 || diff == 2 || diff == 3
 }
 
 #[aoc(day2, part1)]
 pub fn part1(input: &str) -> i32 {
-    let mut count = 0;
+    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+    unsafe fn inner(input: &str) -> i32 {
+        let mut count = 0;
 
-    let iter = &mut LineNumIter::new(input);
-    while let Some(first) = {
-        // Ensure the iterator has reached the end of the line (may not have happened due to copying)
-        iter.jump_to_next_line();
-        iter.next()
-    } {
-        let second = iter.next().assume();
+        let iter = &mut LineNumIter::new(input);
+        while let Some(first) = {
+            // Ensure the iterator has reached the end of the line (may not have happened due to copying)
+            iter.jump_to_next_line();
+            iter.next()
+        } {
+            let second = iter.next().assume();
 
-        if !check_diff(first, second) {
-            continue;
+            if !check_diff(first, second) {
+                continue;
+            }
+
+            let dir = first.cmp(&second);
+
+            count += iter
+                .try_fold(second, |last, curr| {
+                    if last.cmp(&curr) == dir && check_diff(last, curr) {
+                        Some(curr)
+                    } else {
+                        None
+                    }
+                })
+                .is_some() as i32;
         }
 
-        let dir = first.cmp(&second);
-
-        count += iter
-            .try_fold(second, |last, curr| {
-                if last.cmp(&curr) == dir && check_diff(last, curr) {
-                    Some(curr)
-                } else {
-                    None
-                }
-            })
-            .is_some() as i32;
+        count
     }
-
-    count
+    unsafe { inner(input) }
 }
 
 #[derive(Debug)]
@@ -146,7 +146,8 @@ struct Recurse {
     failure_hit: bool,
 }
 
-fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
     let Recurse {
         dir,
         penultimate,
@@ -198,84 +199,88 @@ fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
 
 #[aoc(day2, part2)]
 pub fn part2(input: &str) -> i32 {
-    let mut count = 0;
+    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+    unsafe fn inner(input: &str) -> i32 {
+        let mut count = 0;
 
-    let iter = &mut LineNumIter::new(input);
-    while let Some(first) = {
-        // Ensure the iterator has reached the end of the line (may not have happened due to copying)
-        iter.jump_to_next_line();
-        iter.next()
-    } {
-        let second = iter.next().assume();
+        let iter = &mut LineNumIter::new(input);
+        while let Some(first) = {
+            // Ensure the iterator has reached the end of the line (may not have happened due to copying)
+            iter.jump_to_next_line();
+            iter.next()
+        } {
+            let second = iter.next().assume();
 
-        let mut dir_check_iter = *iter;
-        let third = dir_check_iter.next().assume();
-        let fourth = dir_check_iter.next().assume();
+            let mut dir_check_iter = *iter;
+            let third = dir_check_iter.next().assume();
+            let fourth = dir_check_iter.next().assume();
 
-        let mut inc_count = 0;
-        let mut dec_count = 0;
+            let mut inc_count = 0;
+            let mut dec_count = 0;
 
-        for pair in [(first, second), (second, third), (third, fourth)] {
-            match pair.0.cmp(&pair.1) {
-                Ordering::Less => dec_count += 1,
-                Ordering::Equal => (),
-                Ordering::Greater => inc_count += 1,
+            for pair in [(first, second), (second, third), (third, fourth)] {
+                match pair.0.cmp(&pair.1) {
+                    Ordering::Less => dec_count += 1,
+                    Ordering::Equal => (),
+                    Ordering::Greater => inc_count += 1,
+                }
             }
+
+            let dir = match inc_count.cmp(&dec_count) {
+                Ordering::Equal => continue,
+                order => order,
+            };
+
+            count += if first.cmp(&second) == dir && check_diff(first, second) {
+                recurse(
+                    iter,
+                    Recurse {
+                        dir,
+                        penultimate: first,
+                        last: second,
+                        failure_hit: false,
+                    },
+                )
+            } else {
+                let third = iter.next().assume();
+
+                let skip_first = || {
+                    second.cmp(&third) == dir
+                        && check_diff(second, third)
+                        && recurse(
+                            &mut iter.clone(),
+                            Recurse {
+                                dir,
+                                penultimate: second,
+                                last: third,
+                                failure_hit: true,
+                            },
+                        )
+                };
+
+                let skip_second = || {
+                    first.cmp(&third) == dir
+                        && check_diff(first, third)
+                        && recurse(
+                            &mut iter.clone(),
+                            Recurse {
+                                dir,
+                                penultimate: first,
+                                last: third,
+                                failure_hit: true,
+                            },
+                        )
+                };
+
+                skip_first() || skip_second()
+            } as i32;
+
+            debug!("Line finished, count is {count}");
         }
 
-        let dir = match inc_count.cmp(&dec_count) {
-            Ordering::Equal => continue,
-            order => order,
-        };
-
-        count += if first.cmp(&second) == dir && check_diff(first, second) {
-            recurse(
-                iter,
-                Recurse {
-                    dir,
-                    penultimate: first,
-                    last: second,
-                    failure_hit: false,
-                },
-            )
-        } else {
-            let third = iter.next().assume();
-
-            let skip_first = || {
-                second.cmp(&third) == dir
-                    && check_diff(second, third)
-                    && recurse(
-                        &mut iter.clone(),
-                        Recurse {
-                            dir,
-                            penultimate: second,
-                            last: third,
-                            failure_hit: true,
-                        },
-                    )
-            };
-
-            let skip_second = || {
-                first.cmp(&third) == dir
-                    && check_diff(first, third)
-                    && recurse(
-                        &mut iter.clone(),
-                        Recurse {
-                            dir,
-                            penultimate: first,
-                            last: third,
-                            failure_hit: true,
-                        },
-                    )
-            };
-
-            skip_first() || skip_second()
-        } as i32;
-
-        debug!("Line finished, count is {count}");
+        count
     }
-
-    count
+    unsafe { inner(input) }
 }
 
 #[cfg(test)]
