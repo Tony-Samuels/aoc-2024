@@ -126,24 +126,28 @@ impl Iterator for MultiIter<'_> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        debug!("MultiIter: {self:?}");
-        let curr1 = self.curr1.unwrap_or(usize::MAX);
-        let curr2 = self.curr2.unwrap_or(usize::MAX);
-        let curr3 = self.curr3.unwrap_or(usize::MAX);
+        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+        unsafe fn inner(iter: &mut MultiIter<'_>) -> Option<usize> {
+            debug!("MultiIter: {iter:?}");
+            let curr1 = iter.curr1.unwrap_or(usize::MAX);
+            let curr2 = iter.curr2.unwrap_or(usize::MAX);
+            let curr3 = iter.curr3.unwrap_or(usize::MAX);
 
-        let rc;
+            let rc;
 
-        if curr1 <= curr2 && curr1 <= curr3 {
-            rc = self.curr1;
-            self.curr1 = self.iter1.next();
-        } else if curr2 <= curr1 && curr2 <= curr3 {
-            rc = self.curr2;
-            self.curr2 = self.iter2.next();
-        } else {
-            rc = self.curr3;
-            self.curr3 = self.iter3.next();
+            if curr1 <= curr2 && curr1 <= curr3 {
+                rc = iter.curr1;
+                iter.curr1 = iter.iter1.next();
+            } else if curr2 <= curr1 && curr2 <= curr3 {
+                rc = iter.curr2;
+                iter.curr2 = iter.iter2.next();
+            } else {
+                rc = iter.curr3;
+                iter.curr3 = iter.iter3.next();
+            }
+            rc
         }
-        rc
+        unsafe { inner(self) }
     }
 }
 
