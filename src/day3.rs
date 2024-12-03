@@ -1,7 +1,10 @@
 use std::cmp::min;
 
 use aoc_runner_derive::aoc;
-use memchr::memmem::{find_iter, FindIter};
+use memchr::{
+    arch::all::packedpair::HeuristicFrequencyRank,
+    memmem::{find_iter, FindIter, FinderBuilder},
+};
 
 use crate::debug;
 
@@ -17,6 +20,25 @@ macro_rules! p {
     };
 }
 
+struct Aoc3;
+impl HeuristicFrequencyRank for Aoc3 {
+    fn rank(&self, byte: u8) -> u8 {
+        const TABLE: [u8; 256] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 15, 16, 0, 16, 15, 16, 17, 20, 255, 246, 15, 17, 120, 16, 0, 15, 42, 61, 65,
+            64, 65, 63, 66, 63, 64, 60, 18, 15, 15, 0, 16, 15, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 16, 15, 0, 0, 16, 0, 14, 9, 79, 17,
+            0, 101, 0, 0, 0, 112, 115, 20, 62, 0, 0, 34, 15, 36, 97, 0, 101, 0, 16, 0, 17, 0, 16,
+            15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        TABLE[byte as usize]
+    }
+}
+
 #[aoc(day3, part1)]
 pub fn part1(input: &str) -> u32 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
@@ -25,7 +47,8 @@ pub fn part1(input: &str) -> u32 {
 
         let mut sum = 0;
 
-        let iter = find_iter(input, "mul(".as_bytes());
+        let finder = FinderBuilder::new().build_forward_with_ranker(Aoc3, "mul(".as_bytes());
+        let iter = finder.find_iter(input);
 
         debug!("Match counts: {}", iter.clone().count());
         for partial_match_pos in iter {
@@ -102,26 +125,6 @@ impl std::fmt::Debug for MultiIter<'_> {
     }
 }
 
-impl<'a> MultiIter<'a> {
-    fn new(input: &'a [u8]) -> Self {
-        let mut iter1 = find_iter(input, b"mul(");
-        let curr1 = iter1.next();
-        let mut iter2 = find_iter(input, b"do()");
-        let curr2 = iter2.next();
-        let mut iter3 = find_iter(input, b"don't()");
-        let curr3 = iter3.next();
-
-        Self {
-            curr1,
-            curr2,
-            curr3,
-            iter1,
-            iter2,
-            iter3,
-        }
-    }
-}
-
 impl Iterator for MultiIter<'_> {
     type Item = usize;
 
@@ -157,9 +160,30 @@ pub fn part2(input: &str) -> u32 {
     unsafe fn inner(input: &str) -> u32 {
         let input = input.as_bytes();
 
+        let finder = FinderBuilder::new().build_forward_with_ranker(Aoc3, "mul(".as_bytes());
+        let mut iter1 = finder.find_iter(input);
+        let curr1 = iter1.next();
+
+        let finder = FinderBuilder::new().build_forward_with_ranker(Aoc3, "do()".as_bytes());
+        let mut iter2 = finder.find_iter(input);
+        let curr2 = iter2.next();
+
+        let finder = FinderBuilder::new().build_forward_with_ranker(Aoc3, "don't()".as_bytes());
+        let mut iter3 = finder.find_iter(input);
+        let curr3 = iter3.next();
+
+        let mut iter = MultiIter {
+            curr1,
+            curr2,
+            curr3,
+            iter1,
+            iter2,
+            iter3,
+        };
+
         let mut sum = 0;
         let mut enabled = true;
-        for partial_match_pos in MultiIter::new(input) {
+        for partial_match_pos in iter {
             if enabled {
                 match &input[partial_match_pos..] {
                     [b'd', b'o', b'n', b'\'', b't', b'(', b')', ..] => {
