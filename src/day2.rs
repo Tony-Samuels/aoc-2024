@@ -1,8 +1,16 @@
-use std::cmp::{min, Ordering};
+use std::{
+    cmp::{min, Ordering},
+    mem::transmute,
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd as _},
+        num::{SimdInt as _, SimdUint as _},
+        Mask, Simd,
+    },
+};
 
 use aoc_runner_derive::aoc;
 
-use crate::{debug, Assume as _, Unreachable};
+use crate::{assume, debug, Assume as _, Unreachable};
 
 #[derive(Clone, Copy)]
 struct LineNumIter<'a> {
@@ -106,38 +114,99 @@ unsafe fn check_diff(first: i8, second: i8) -> bool {
 pub fn part1(input: &str) -> i32 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> i32 {
+        let mut input = input.as_bytes();
+
         let mut count = 1_000;
-        let mut added = false;
 
-        let iter = &mut LineNumIter::new(input);
-        while let Some(first) = {
-            // Ensure the iterator has reached the end of the line (may not have happened due to copying)
-            iter.jump_to_next_line();
-            iter.next()
-        } {
-            let second = iter.next().assume();
+        loop {
+            // Each line has at most 3 numbers
+            // Each num is at most 2 characters, plus a ' ' or '\n', so 3 * 8.
+            //
+            // We terminate early so we'll never read the last line, which may be shorter
+            let line = &input[..32];
+            let line = Simd::<u8, 32>::from_slice(&input[..32]);
+            let line_len = (line.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32).trailing_zeros();
 
-            if !check_diff(first, second) {
-                count -= 1;
-                continue;
+            input = &input[(line_len + 1) as usize..];
+
+            let line_mask: Mask<i8, 32> = Mask::from_bitmask(!(u64::MAX << line_len));
+            let space_mask = line.simd_eq(Simd::splat(b' '));
+            let digit_mask = line_mask & !space_mask;
+
+            let zeroes = [0; 32];
+            let digit_line =
+                Simd::load_select_unchecked(&zeroes, !digit_mask, line - Simd::splat(b'0'));
+            let digit_line = digit_line.as_array();
+
+            let tens_mask = Mask::from_bitmask(digit_mask.to_bitmask() >> 1) & digit_mask;
+            let units_mask = digit_mask & !tens_mask;
+            let digits_count = units_mask.to_bitmask().count_ones();
+
+            // We'll take different 10s to the ones we found, for storage, as not every digit has a tens
+            let fake_tens_mask = units_mask.to_bitmask() >> 1;
+            // If there's no initial 10, then we need to shift the tens output to the array by 1
+            let tens_offset = 1 - (fake_tens_mask & 0x1) as usize;
+            let fake_tens_mask: Mask<i8, 32> = Mask::from_bitmask(fake_tens_mask);
+
+            let mut units = [0_i8; 8];
+            let mut tens = [0_i8; 8];
+
+            let mut unit_index = 0;
+            for (digit_index, take_unit) in units_mask.to_array().into_iter().enumerate() {
+                if take_unit {
+                    *units.get_unchecked_mut(unit_index) =
+                        *digit_line.get_unchecked(digit_index) as _;
+                    unit_index += 1;
+                }
             }
 
-            let dir = first.cmp(&second);
+            let mut tens_index = tens_offset;
+            for (digit_index, take_ten) in fake_tens_mask.to_array().into_iter().enumerate() {
+                if take_ten {
+                    *tens.get_unchecked_mut(tens_index) =
+                        *digit_line.get_unchecked(digit_index) as _;
+                    tens_index += 1;
+                }
+            }
 
-            let sub = iter
-                .try_fold(second, |last, curr| {
-                    if last.cmp(&curr) == dir && check_diff(last, curr) {
-                        Some(curr)
-                    } else {
-                        None
-                    }
-                })
-                .is_none();
-            count -= sub as i32;
+            let digits = Simd::from_array(units) + (Simd::from_array(tens) * Simd::splat(10));
+            let diff = digits - digits.rotate_elements_left::<1>();
 
-            if !sub {
+            // Overwrite values that aren't digits with valid values
+            let diff_signs = diff.signum();
+            let replacement_valid_sign = [diff_signs[0]; 8];
+            let diff_signs = Simd::load_select_unchecked(
+                &replacement_valid_sign,
+                Mask::from_bitmask(u64::MAX << digits_count - 1),
+                diff_signs,
+            );
+            let valid_signs = diff_signs == Simd::from_array(replacement_valid_sign);
+
+            // Overwrite values that aren't digits with valid values
+            let replacement_valid_diff = [1; 8];
+            let abs_diff: Simd<u8, 8> = Simd::load_select_unchecked(
+                &replacement_valid_diff,
+                Mask::from_bitmask(u64::MAX << digits_count - 1),
+                diff.abs().cast::<u8>(),
+            );
+
+            let valid_diffs =
+                (abs_diff.simd_lt(Simd::splat(4)) & abs_diff.simd_gt(Simd::splat(0))).all();
+
+            debug!(
+                "Line: {line}\nValid: {valid_diffs} & {valid_signs}\nParsed as: {digits:?}\nDiffs: {diff:?}\nDiff signs: {diff_signs:?}\nDiff abs: {abs_diff:?}",
+                line = std::str::from_utf8(line.as_array())
+                    .unwrap()
+                    .lines()
+                    .next()
+                    .unwrap()
+            );
+
+            if valid_signs && valid_diffs {
                 break;
             }
+
+            count -= 1;
         }
 
         count
