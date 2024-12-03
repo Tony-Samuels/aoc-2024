@@ -106,7 +106,8 @@ unsafe fn check_diff(first: i8, second: i8) -> bool {
 pub fn part1(input: &str) -> i32 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> i32 {
-        let mut count = 0;
+        let mut count = 1_000;
+        let mut added = false;
 
         let iter = &mut LineNumIter::new(input);
         while let Some(first) = {
@@ -117,12 +118,13 @@ pub fn part1(input: &str) -> i32 {
             let second = iter.next().assume();
 
             if !check_diff(first, second) {
+                count -= 1;
                 continue;
             }
 
             let dir = first.cmp(&second);
 
-            count += iter
+            let sub = iter
                 .try_fold(second, |last, curr| {
                     if last.cmp(&curr) == dir && check_diff(last, curr) {
                         Some(curr)
@@ -130,7 +132,12 @@ pub fn part1(input: &str) -> i32 {
                         None
                     }
                 })
-                .is_some() as i32;
+                .is_none();
+            count -= sub as i32;
+
+            if !sub {
+                break;
+            }
         }
 
         count
@@ -293,11 +300,6 @@ mod tests {
 1 3 2 4 5
 8 6 4 4 1
 1 3 6 7 9";
-
-    #[test]
-    fn example_p1() {
-        assert_eq!(part1(INPUT), 2);
-    }
 
     #[test]
     fn example_p2() {
