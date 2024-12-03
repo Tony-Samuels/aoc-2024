@@ -98,8 +98,8 @@ impl Iterator for LineNumIter<'_> {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn check_diff(first: i8, second: i8) -> bool {
-    let diff = (first - second).abs();
-    diff == 1 || diff == 2 || diff == 3
+    let diff = first - second;
+    diff == 1 || diff == 2 || diff == 3 || diff == -1 || diff == -2 || diff == -3
 }
 
 #[aoc(day2, part1)]
