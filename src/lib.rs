@@ -20,12 +20,14 @@ const DEBUG_ENABLED: bool = cfg!(test) || cfg!(feature = "debug");
 #[macro_export]
 macro_rules! debug {
     () => {
-        if $crate::DEBUG_ENABLED {
+        #[cfg(any(test, feature = "debug"))]
+        {
             println!("{}:{}", file!(), line!());
         }
     };
     ($($arg:tt)*) => {
-        if $crate::DEBUG_ENABLED {
+        #[cfg(any(test, feature = "debug"))]
+        {
             print!("{}:{} ", file!(), line!());
             println!($($arg)*);
         }
@@ -36,7 +38,8 @@ macro_rules! debug {
 macro_rules! assume {
     ($e:expr) => {{
         let val = $e;
-        if $crate::DEBUG_ENABLED && !val.as_bool() {
+        #[cfg(any(test, feature = "debug"))]
+        if !val.as_bool() {
             println!("{}:{}", file!(), line!());
         }
 
@@ -44,7 +47,8 @@ macro_rules! assume {
     }};
     ($e:expr, $($arg:tt)*) => {{
         let val = $e;
-        if $crate::DEBUG_ENABLED && !val.as_bool() {
+        #[cfg(any(test, feature = "debug"))]
+        if !val.as_bool() {
             print!("{}:{} ", file!(), line!());
             println!($($arg)*);
         }
@@ -56,12 +60,16 @@ macro_rules! assume {
 trait Assume: Sized {
     type T;
 
+    #[cfg(any(test, feature = "debug"))]
     fn as_bool(&self) -> bool;
 
     fn assume(self) -> Self::T {
-        if DEBUG_ENABLED {
+        #[cfg(any(test, feature = "debug"))]
+        {
             self.assume_safe()
-        } else {
+        }
+        #[cfg(not(any(test, feature = "debug")))]
+        {
             self.assume_dangerous()
         }
     }
@@ -74,6 +82,7 @@ trait Assume: Sized {
 impl<T> Assume for Option<T> {
     type T = T;
 
+    #[cfg(any(test, feature = "debug"))]
     fn as_bool(&self) -> bool {
         self.is_some()
     }
@@ -96,6 +105,7 @@ where
 {
     type T = T;
 
+    #[cfg(any(test, feature = "debug"))]
     fn as_bool(&self) -> bool {
         self.is_ok()
     }
@@ -117,6 +127,7 @@ struct Unreachable;
 impl Assume for Unreachable {
     type T = !;
 
+    #[cfg(any(test, feature = "debug"))]
     fn as_bool(&self) -> bool {
         false
     }
@@ -133,6 +144,7 @@ impl Assume for Unreachable {
 impl Assume for bool {
     type T = ();
 
+    #[cfg(any(test, feature = "debug"))]
     fn as_bool(&self) -> bool {
         *self
     }
