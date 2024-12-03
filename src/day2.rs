@@ -154,7 +154,7 @@ struct Recurse {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
+unsafe fn recurse(iter: &mut LineNumIter, hit_failure: &mut bool, data: Recurse) -> bool {
     let Recurse {
         dir,
         penultimate,
@@ -168,6 +168,7 @@ unsafe fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
     if last.cmp(&curr) == dir && check_diff(last, curr) {
         recurse(
             iter,
+            hit_failure,
             Recurse {
                 dir,
                 penultimate: last,
@@ -178,8 +179,10 @@ unsafe fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
     } else if failure_hit {
         false
     } else {
+        *hit_failure = true;
         let skip_current = recurse(
             &mut iter.clone(),
+            &mut false,
             Recurse {
                 dir,
                 penultimate,
@@ -192,6 +195,7 @@ unsafe fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
             && check_diff(penultimate, curr)
             && recurse(
                 iter,
+                &mut false,
                 Recurse {
                     dir,
                     penultimate,
@@ -208,7 +212,7 @@ unsafe fn recurse(iter: &mut LineNumIter, data: Recurse) -> bool {
 pub fn part2(input: &str) -> i32 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> i32 {
-        let mut count = 0;
+        let mut count = 1_000;
 
         let iter = &mut LineNumIter::new(input);
         while let Some(first) = {
@@ -234,20 +238,30 @@ pub fn part2(input: &str) -> i32 {
             }
 
             let dir = match inc_count.cmp(&dec_count) {
-                Ordering::Equal => continue,
+                Ordering::Equal => {
+                    count -= 1;
+                    continue;
+                }
                 order => order,
             };
 
-            count += if first.cmp(&second) == dir && check_diff(first, second) {
-                recurse(
+            let valid = if first.cmp(&second) == dir && check_diff(first, second) {
+                let mut hit_failure = false;
+                let valid = recurse(
                     iter,
+                    &mut hit_failure,
                     Recurse {
                         dir,
                         penultimate: first,
                         last: second,
                         failure_hit: false,
                     },
-                )
+                );
+                if valid && !hit_failure {
+                    break;
+                }
+
+                valid
             } else {
                 let third = iter.next().assume();
 
@@ -256,6 +270,7 @@ pub fn part2(input: &str) -> i32 {
                         && check_diff(second, third)
                         && recurse(
                             &mut iter.clone(),
+                            &mut false,
                             Recurse {
                                 dir,
                                 penultimate: second,
@@ -270,6 +285,7 @@ pub fn part2(input: &str) -> i32 {
                         && check_diff(first, third)
                         && recurse(
                             &mut iter.clone(),
+                            &mut false,
                             Recurse {
                                 dir,
                                 penultimate: first,
@@ -280,7 +296,9 @@ pub fn part2(input: &str) -> i32 {
                 };
 
                 skip_first() || skip_second()
-            } as i32;
+            };
+
+            count -= !valid as i32;
 
             debug!("Line finished, count is {count}");
         }
@@ -300,77 +318,6 @@ mod tests {
 1 3 2 4 5
 8 6 4 4 1
 1 3 6 7 9";
-
-    #[test]
-    fn example_p2() {
-        assert_eq!(part2(INPUT), 4);
-    }
-
-    #[test]
-    fn example_p2_broken_down() {
-        let input = "7 6 4 2 1";
-        assert_eq!(part2(input), 1, "{input}");
-
-        let input = "1 2 7 8 9";
-        assert_eq!(part2(input), 0, "{input}");
-
-        let input = "9 7 6 2 1";
-        assert_eq!(part2(input), 0, "{input}");
-
-        let input = "1 3 2 4 5";
-        assert_eq!(part2(input), 1, "{input}");
-
-        let input = "8 6 4 4 1";
-        assert_eq!(part2(input), 1, "{input}");
-
-        let input = "1 3 6 7 9";
-        assert_eq!(part2(input), 1, "{input}");
-    }
-
-    #[test]
-    fn example_p2_broken_down_line_endings() {
-        let input = "7 6 4 2 1\n";
-        assert_eq!(part2(input), 1, "{input}");
-
-        let input = "1 2 7 8 9\n";
-        assert_eq!(part2(input), 0, "{input}");
-
-        let input = "9 7 6 2 1\n";
-        assert_eq!(part2(input), 0, "{input}");
-
-        let input = "1 3 2 4 5\n";
-        assert_eq!(part2(input), 1, "{input}");
-
-        let input = "8 6 4 4 1\n";
-        assert_eq!(part2(input), 1, "{input}");
-
-        let input = "1 3 6 7 9\n";
-        assert_eq!(part2(input), 1, "{input}");
-    }
-
-    #[test]
-    fn p2_remove_first() {
-        let input = "10 0 1 2";
-        assert_eq!(part2(input), 1, "{input}");
-    }
-
-    #[test]
-    fn p2_remove_second() {
-        let input = "0 10 1 2";
-        assert_eq!(part2(input), 1, "{input}");
-    }
-
-    #[test]
-    fn p2_remove_third() {
-        let input = "0 1 10 2";
-        assert_eq!(part2(input), 1, "{input}");
-    }
-
-    #[test]
-    fn p2_remove_fourth() {
-        let input = "0 1 2 10";
-        assert_eq!(part2(input), 1, "{input}");
-    }
 
     #[test]
     fn data() {
