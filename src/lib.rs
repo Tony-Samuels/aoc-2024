@@ -3,7 +3,8 @@
     maybe_uninit_array_assume_init,
     maybe_uninit_uninit_array,
     never_type,
-    portable_simd
+    portable_simd,
+    stmt_expr_attributes
 )]
 
 use std::{fmt::Debug, hint::unreachable_unchecked};
@@ -12,6 +13,7 @@ use aoc_runner_derive::aoc_lib;
 
 pub mod day1;
 pub mod day2;
+pub mod day3;
 
 aoc_lib! { year = 2024 }
 
