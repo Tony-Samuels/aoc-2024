@@ -24,7 +24,7 @@ macro_rules! p {
 struct Aoc3;
 impl HeuristicFrequencyRank for Aoc3 {
     fn rank(&self, byte: u8) -> u8 {
-        const TABLE: [u8; 256] = [
+        [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 15, 16, 0, 16, 15, 16, 17, 20, 255, 246, 15, 17, 120, 16, 0, 15, 42, 61, 65,
             64, 65, 63, 66, 63, 64, 60, 18, 15, 15, 0, 16, 15, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -35,128 +35,70 @@ impl HeuristicFrequencyRank for Aoc3 {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ];
-        TABLE[byte as usize]
+        ][byte as usize]
     }
 }
 
 #[aoc(day3, part1)]
 pub fn part1(input: &str) -> u32 {
-    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-    unsafe fn inner(input: &str) -> u32 {
-        let input = input.as_bytes();
+    unsafe { inner_part1(input.as_bytes()) }
+}
 
-        let mut sum = 0;
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn inner_part1(input: &[u8]) -> u32 {
+    let mut sum = 0;
 
-        let iter = Memchr::new(b'u', input);
+    let iter = Memchr::new(b'u', input);
 
-        debug!("Match counts: {}", iter.clone().count());
-        for partial_match_pos in iter {
-            match &input[(partial_match_pos + 1)..] {
-                [b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                    sum += p!(num1) * p!(num2);
-                }
-                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                    sum += p!(num1_1, num1_2) * p!(num2)
-                }
-                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                    sum += p!(num1_1, num1_2, num1_3) * p!(num2)
-                }
-                [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1) * p!(num2_1, num2_2);
-                }
-                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
-                }
-                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
-                }
-                [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1) * p!(num2_1, num2_2, num2_3);
-                }
-                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
-                }
-                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-                {
-                    let num1 = p!(num1_1, num1_2, num1_3);
-                    let num2 = p!(num2_1, num2_2, num2_3);
-                    debug!("{num1} * {num2}");
-                    sum += num1 * num2;
-                }
-                arr => {
-                    debug!(
-                        "Unexpected values: {:?}",
-                        std::str::from_utf8(&arr[..(min(arr.len(), 10))]).unwrap()
-                    )
-                }
+    debug!("Match counts: {}", iter.clone().count());
+    for partial_match_pos in iter {
+        match &input[partial_match_pos + 1..] {
+            [b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                sum += p!(num1) * p!(num2);
+            }
+            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                sum += p!(num1_1, num1_2) * p!(num2)
+            }
+            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                sum += p!(num1_1, num1_2, num1_3) * p!(num2)
+            }
+            [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+            {
+                sum += p!(num1) * p!(num2_1, num2_2);
+            }
+            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+            {
+                sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
+            }
+            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+            {
+                sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
+            }
+            [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+            {
+                sum += p!(num1) * p!(num2_1, num2_2, num2_3);
+            }
+            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+            {
+                sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
+            }
+            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+            {
+                let num1 = p!(num1_1, num1_2, num1_3);
+                let num2 = p!(num2_1, num2_2, num2_3);
+                debug!("{num1} * {num2}");
+                sum += num1 * num2;
+            }
+            arr => {
+                debug!(
+                    "Unexpected values: {:?}",
+                    std::str::from_utf8(&arr[..(min(arr.len(), 10))]).unwrap()
+                )
             }
         }
-
-        sum
     }
 
-    unsafe { inner(input) }
-}
-
-#[derive(Clone)]
-struct MultiIter<'a> {
-    curr1: Option<usize>,
-    curr2: Option<usize>,
-
-    iter1: Memchr<'a>,
-    iter2: FindIter<'a, 'a>,
-}
-
-impl<'a> MultiIter<'a> {
-    fn new(mut iter1: Memchr<'a>, mut iter2: FindIter<'a, 'a>) -> Self {
-        Self {
-            curr1: iter1.next(),
-            curr2: iter2.next(),
-            iter1,
-            iter2,
-        }
-    }
-}
-
-#[cfg(any(test, feature = "debug"))]
-impl std::fmt::Debug for MultiIter<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MultiIter")
-            .field("curr1", &self.curr1)
-            .field("curr2", &self.curr2)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Iterator for MultiIter<'_> {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-        unsafe fn inner(iter: &mut MultiIter<'_>) -> Option<usize> {
-            debug!("MultiIter: {iter:?}");
-            let curr1 = iter.curr1.unwrap_or(usize::MAX);
-            let curr2 = iter.curr2.unwrap_or(usize::MAX);
-
-            let rc;
-
-            if curr1 < curr2 {
-                rc = iter.curr1;
-                iter.curr1 = iter.iter1.next();
-            } else {
-                rc = iter.curr2;
-                iter.curr2 = iter.iter2.next();
-            }
-            rc
-        }
-        unsafe { inner(self) }
-    }
+    sum
 }
 
 #[aoc(day3, part2)]
@@ -165,74 +107,20 @@ pub fn part2(input: &str) -> u32 {
     unsafe fn inner(input: &str) -> u32 {
         let mut input = input.as_bytes();
 
-        let iter_mul = Memchr::new(b'u', input);
-
         let finder_dont = FinderBuilder::new().build_forward_with_ranker(Aoc3, "'t".as_bytes());
-        let iter_dont = finder_dont.find_iter(input);
-
-        let mut iter = MultiIter::new(iter_mul, iter_dont);
         let finder_do = FinderBuilder::new().build_forward_with_ranker(Aoc3, "do(".as_bytes());
 
         let mut sum = 0;
-        let mut enabled = true;
-        while let Some(partial_match_pos) = iter.next() {
-            match &input[partial_match_pos..] {
-                [b'\'', b't', ..] => {
-                    let Some(pos) = finder_do.find_iter(&input[partial_match_pos..]).next() else {
-                        break;
-                    };
+        while let Some(pos) = finder_dont.find(input) {
+            debug!("Don't position {pos}");
+            sum += inner_part1(&input[..pos - 3]);
 
-                    input = &input[partial_match_pos + pos + 4..];
-                    let iter_mul = Memchr::new(b'u', input);
-                    let iter_dont = finder_dont.find_iter(input);
-
-                    iter = MultiIter::new(iter_mul, iter_dont);
-                }
-                [b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                    sum += p!(num1) * p!(num2);
-                }
-                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                    sum += p!(num1_1, num1_2) * p!(num2)
-                }
-                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                    sum += p!(num1_1, num1_2, num1_3) * p!(num2)
-                }
-                [b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1) * p!(num2_1, num2_2);
-                }
-                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
-                }
-                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
-                }
-                [b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1) * p!(num2_1, num2_2, num2_3);
-                }
-                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-                {
-                    sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
-                }
-                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-                {
-                    let num1 = p!(num1_1, num1_2, num1_3);
-                    let num2 = p!(num2_1, num2_2, num2_3);
-                    sum += num1 * num2;
-                }
-                arr => {
-                    debug!(
-                        "Unexpected values: {:?}",
-                        std::str::from_utf8(&arr[..(min(arr.len(), 10))]).unwrap()
-                    )
-                }
-            };
+            let pos = pos + finder_do.find(&input[pos + 4..]).unwrap_or(input.len() - 4);
+            debug!("Do position {pos}");
+            input = &input[pos + 4..];
         }
 
-        sum
+        sum + inner_part1(input)
     }
 
     unsafe { inner(input) }
