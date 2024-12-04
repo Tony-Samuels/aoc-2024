@@ -50,7 +50,7 @@ where
     let mut count = 0;
 
     // Top few can't have up, left
-    for pos in 0..3 {
+    for pos in iter_offset(input, 0, 3) {
         count += right(input, pos);
         debug!("Count: {count}");
         count += down(input, pos);
@@ -74,7 +74,7 @@ where
     }
 
     // First few on line 4 can't have left
-    for pos in LINE_LEN * 3..LINE_LEN * 3 + 3 {
+    for pos in iter_offset(input, LINE_LEN * 3, LINE_LEN * 3 + 3) {
         count += up(input, pos);
         debug!("Count: {count}");
         count += up_right(input, pos);
@@ -108,7 +108,7 @@ where
     }
 
     // Last few on 4th last line can't have right
-    for pos in main_end..main_end + 3 {
+    for pos in iter_offset(input, main_end, main_end + 3) {
         count += up_left(input, pos);
         debug!("Count: {count}");
         count += up(input, pos);
@@ -136,8 +136,7 @@ where
     }
 
     // Last few can't have right, down
-    let final_start = input.len() - 3;
-    for pos in final_start..input.len() {
+    for pos in iter_offset(input, input.len() - 3, input.len()) {
         count += up_left(input, pos);
         debug!("Count: {count}");
         count += up(input, pos);
