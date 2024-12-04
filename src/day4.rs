@@ -67,20 +67,17 @@ pub fn part2(input: &str) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
-    for a_pos in input
+
+    for a_pos in input[LINE_LEN + 1..input.len() - LINE_LEN - 1]
         .iter()
         .enumerate()
         .filter(|(_, &c)| c == A)
-        .map(|(n, _)| n)
+        .map(|(n, _)| LINE_LEN + 1 + n)
     {
-        let first_valid = (input.get(a_pos.wrapping_sub(LINE_LEN + 1)).unwrap_or(&0)
-            ^ input.get(a_pos + LINE_LEN + 1).unwrap_or(&0))
-            == 30;
+        let first_valid = (input[a_pos - (LINE_LEN + 1)] ^ input[a_pos + LINE_LEN + 1]) == 30;
 
-        let both_valid = first_valid
-            && (input.get(a_pos.wrapping_sub(LINE_LEN - 1)).unwrap_or(&0)
-                ^ input.get(a_pos + LINE_LEN - 1).unwrap_or(&0))
-                == 30;
+        let both_valid =
+            first_valid && (input[a_pos - (LINE_LEN - 1)] ^ input[a_pos + LINE_LEN - 1]) == 30;
 
         count += both_valid as u32;
     }
@@ -133,5 +130,14 @@ MXMXAXMASX";
     #[test]
     fn p1_simplest_backward() {
         assert_eq!(unsafe { part1_inner::<4>("SAMX".as_bytes()) }, 1);
+    }
+
+    #[test]
+    fn p2_reduced_range() {
+        let input = "M.S
+.A.
+M.S"
+        .as_bytes();
+        assert_eq!(unsafe { part2_inner::<4>(input) }, 1);
     }
 }
