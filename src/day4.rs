@@ -18,6 +18,7 @@ const XMAS: u32 = unsafe { transmute::<[u8; 4], u32>([X, M, A, S]) };
 const SAMX: u32 = unsafe { transmute::<[u8; 4], u32>([S, A, M, X]) };
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
 unsafe fn iter_offset<const MATCH: u8>(
     input: &[u8],
     start: usize,
