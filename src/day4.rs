@@ -9,7 +9,12 @@ pub fn part1(input: &str) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
-    for x_pos in Memchr::new(b'X', input) {
+    for x_pos in input
+        .iter()
+        .enumerate()
+        .filter(|(_, &c)| c == b'X')
+        .map(|(n, _)| n)
+    {
         for diff in [
             // Right/left
             1,
@@ -43,7 +48,12 @@ pub fn part2(input: &str) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
-    for a_pos in Memchr::new(b'A', input) {
+    for a_pos in input
+        .iter()
+        .enumerate()
+        .filter(|(_, &c)| c == b'A')
+        .map(|(n, _)| n)
+    {
         let first_valid = (input.get(a_pos.wrapping_sub(LINE_LEN + 1)).unwrap_or(&0)
             ^ input.get(a_pos + LINE_LEN + 1).unwrap_or(&0))
             == 30;
