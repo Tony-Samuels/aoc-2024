@@ -1,7 +1,8 @@
 use std::{cmp::min, mem::transmute};
 
 use aoc_runner_derive::aoc;
-use memchr::Memchr;
+
+use crate::debug;
 
 #[aoc(day4, part1)]
 pub fn part1(input: &str) -> u32 {
@@ -17,46 +18,165 @@ const XMAS: u32 = unsafe { transmute::<[u8; 4], u32>([X, M, A, S]) };
 const SAMX: u32 = unsafe { transmute::<[u8; 4], u32>([S, A, M, X]) };
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
-    let mut count = 0;
-    for x_pos in input
+unsafe fn iter_offset<const MATCH: u8>(
+    input: &[u8],
+    start: usize,
+    end: usize,
+) -> impl Iterator<Item = usize> + '_ {
+    input[start..end]
         .iter()
         .enumerate()
-        .filter(|(_, &c)| c == X)
-        .map(|(n, _)| n)
-    {
-        // Right/left
-        if x_pos + 3 < input.len() {
-            let val = (input.as_ptr().add(x_pos) as *const u32).read_unaligned();
-            count += (val == XMAS) as u32;
-        }
+        .filter(|(_, &c)| c == MATCH)
+        .map(move |(n, _)| n + start)
+}
 
-        if x_pos >= 3 {
-            let val = (input.as_ptr().add(x_pos).sub(3) as *const u32).read_unaligned();
-            count += (val == SAMX) as u32;
-        }
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32
+where
+    [(); { LINE_LEN + 1 }]:,
+    [(); { LINE_LEN - 1 }]:,
+{
+    let iter_offset = iter_offset::<X>;
 
-        for diff in [
-            // Up/down
-            LINE_LEN,
-            // \
-            LINE_LEN + 1,
-            // /
-            LINE_LEN - 1,
-        ] {
-            let valid = input.get(x_pos + diff) == Some(&M);
-            let valid = valid && input.get(x_pos + 2 * diff) == Some(&A);
-            let valid = valid && input.get(x_pos + 3 * diff) == Some(&S);
-            count += valid as u32;
+    let down = line::<LINE_LEN>;
+    let up = line_neg::<LINE_LEN>;
 
-            let valid = input.get(x_pos.wrapping_sub(diff)) == Some(&M);
-            let valid = valid && input.get(x_pos.wrapping_sub(2 * diff)) == Some(&A);
-            let valid = valid && input.get(x_pos.wrapping_sub(3 * diff)) == Some(&S);
-            count += valid as u32;
-        }
+    let down_right = line::<{ LINE_LEN + 1 }>;
+    let up_left = line_neg::<{ LINE_LEN + 1 }>;
+
+    let down_left = line::<{ LINE_LEN - 1 }>;
+    let up_right = line_neg::<{ LINE_LEN - 1 }>;
+
+    let mut count = 0;
+
+    // Top few can't have up, left
+    for pos in 0..3 {
+        count += right(input, pos);
+        debug!("Count: {count}");
+        count += down(input, pos);
+        debug!("Count: {count}");
+        count += down_right(input, pos);
+        debug!("Count: {count}");
+    }
+
+    // Top few lines can't have up
+    for x_pos in iter_offset(input, 3, LINE_LEN * 3) {
+        count += left(input, x_pos);
+        debug!("Count: {count}");
+        count += right(input, x_pos);
+        debug!("Count: {count}");
+        count += down_left(input, x_pos);
+        debug!("Count: {count}");
+        count += down(input, x_pos);
+        debug!("Count: {count}");
+        count += down_right(input, x_pos);
+        debug!("Count: {count}");
+    }
+
+    // First few on line 4 can't have left
+    for pos in LINE_LEN * 3..LINE_LEN * 3 + 3 {
+        count += up(input, pos);
+        debug!("Count: {count}");
+        count += up_right(input, pos);
+        debug!("Count: {count}");
+        count += right(input, pos);
+        debug!("Count: {count}");
+        count += down(input, pos);
+        debug!("Count: {count}");
+        count += down_right(input, pos);
+        debug!("Count: {count}");
+    }
+
+    let main_end = input.len() - (LINE_LEN * 3 + 3);
+    for x_pos in iter_offset(input, LINE_LEN * 3 + 3, main_end) {
+        count += up_left(input, x_pos);
+        debug!("Count: {count}");
+        count += up(input, x_pos);
+        debug!("Count: {count}");
+        count += up_right(input, x_pos);
+        debug!("Count: {count}");
+        count += left(input, x_pos);
+        debug!("Count: {count}");
+        count += right(input, x_pos);
+        debug!("Count: {count}");
+        count += down_left(input, x_pos);
+        debug!("Count: {count}");
+        count += down(input, x_pos);
+        debug!("Count: {count}");
+        count += down_right(input, x_pos);
+        debug!("Count: {count}");
+    }
+
+    // Last few on 4th last line can't have right
+    for pos in main_end..main_end + 3 {
+        count += up_left(input, pos);
+        debug!("Count: {count}");
+        count += up(input, pos);
+        debug!("Count: {count}");
+        count += left(input, pos);
+        debug!("Count: {count}");
+        count += down_left(input, pos);
+        debug!("Count: {count}");
+        count += down(input, pos);
+        debug!("Count: {count}");
+    }
+
+    // Bottom few lines can't have down
+    for x_pos in iter_offset(input, input.len() - LINE_LEN * 3, input.len() - 3) {
+        count += up_left(input, x_pos);
+        debug!("Count: {count}");
+        count += up(input, x_pos);
+        debug!("Count: {count}");
+        count += up_right(input, x_pos);
+        debug!("Count: {count}");
+        count += left(input, x_pos);
+        debug!("Count: {count}");
+        count += right(input, x_pos);
+        debug!("Count: {count}");
+    }
+
+    // Last few can't have right, down
+    let final_start = input.len() - 3;
+    for pos in final_start..input.len() {
+        count += up_left(input, pos);
+        debug!("Count: {count}");
+        count += up(input, pos);
+        debug!("Count: {count}");
+        count += left(input, pos);
+        debug!("Count: {count}");
     }
 
     count
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
+unsafe fn right(input: &[u8], x_pos: usize) -> u32 {
+    ((input.as_ptr().add(x_pos) as *const u32).read_unaligned() == XMAS) as u32
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
+unsafe fn left(input: &[u8], x_pos: usize) -> u32 {
+    ((input.as_ptr().add(x_pos).sub(3) as *const u32).read_unaligned() == SAMX) as u32
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
+unsafe fn line<const DIFF: usize>(input: &[u8], x_pos: usize) -> u32 {
+    (input[x_pos] == X
+        && input[x_pos + DIFF] == M
+        && input[x_pos + 2 * DIFF] == A
+        && input[x_pos + 3 * DIFF] == S) as u32
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
+unsafe fn line_neg<const DIFF: usize>(input: &[u8], x_pos: usize) -> u32 {
+    (input[x_pos] == X
+        && input[x_pos - DIFF] == M
+        && input[x_pos - 2 * DIFF] == A
+        && input[x_pos - 3 * DIFF] == S) as u32
 }
 
 #[aoc(day4, part2)]
@@ -68,12 +188,7 @@ pub fn part2(input: &str) -> u32 {
 unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
 
-    for a_pos in input[LINE_LEN + 1..input.len() - LINE_LEN - 1]
-        .iter()
-        .enumerate()
-        .filter(|(_, &c)| c == A)
-        .map(|(n, _)| LINE_LEN + 1 + n)
-    {
+    for a_pos in iter_offset::<A>(input, LINE_LEN + 1, input.len() - LINE_LEN - 1) {
         let first_valid = (input[a_pos - (LINE_LEN + 1)] ^ input[a_pos + LINE_LEN + 1]) == 30;
 
         let both_valid =
@@ -110,6 +225,80 @@ MXMXAXMASX";
         assert_eq!(unsafe { part2_inner::<11>(INPUT.as_bytes()) }, 9);
     }
 
+    #[test]
+    fn p1_edge_checks() {
+        // format!("........\n........\n........\n........\n........\n........\n........\n........"),
+        for input in [
+            // Right
+            format!(
+                "XMAS....\n........\n........\n........\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n........\n........\n........\n....XMAS"
+            ),
+            // Left
+            format!(
+                "SAMX....\n........\n........\n........\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n........\n........\n........\n....SAMX"
+            ),
+            // Down
+            format!(
+                "X.......\nM.......\nA.......\nS.......\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n.......X\n.......M\n.......A\n.......S"
+            ),
+            // Up
+            format!(
+                "S.......\nA.......\nM.......\nX.......\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n.......S\n.......A\n.......M\n.......X"
+            ),
+            // Down right
+            format!(
+                "X.......\n.M......\n..A.....\n...S....\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n....X...\n.....M..\n......A.\n.......S"
+            ),
+            // Down left
+            format!(
+                "...X....\n..M.....\n.A......\nS.......\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n.......X\n......M.\n.....A..\n....S..."
+            ),
+            // Up right
+            format!(
+                "...S....\n..A.....\n.M......\nX.......\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n.......S\n......A.\n.....M..\n....X..."
+            ),
+            // Up left
+            format!(
+                "S.......\n.A......\n..M.....\n...X....\n........\n........\n........\n........"
+            ),
+            format!(
+                "........\n........\n........\n........\n....S...\n.....A..\n......M.\n.......X"
+            ),
+        ] {
+            debug!("New input");
+            assert!(
+                input.lines().map(str::len).all(|n| n == 8),
+                "Incorrect line length"
+            );
+            assert_eq!(
+                unsafe { part1_inner::<9>(input.as_bytes()) },
+                1,
+                "\n{input}"
+            );
+        }
+    }
+
     const REAL_INPUT: &str = include_str!("../input/2024/day4.txt");
 
     #[test]
@@ -120,16 +309,6 @@ MXMXAXMASX";
     #[test]
     fn p2_real() {
         assert_eq!(unsafe { part2(REAL_INPUT) }, 1_950);
-    }
-
-    #[test]
-    fn p1_simplest() {
-        assert_eq!(unsafe { part1_inner::<4>("XMAS".as_bytes()) }, 1);
-    }
-
-    #[test]
-    fn p1_simplest_backward() {
-        assert_eq!(unsafe { part1_inner::<4>("SAMX".as_bytes()) }, 1);
     }
 
     #[test]

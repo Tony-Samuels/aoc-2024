@@ -1,12 +1,12 @@
-#![allow(unused)]
+#![allow(unused, incomplete_features)]
 #![feature(
+    generic_const_exprs,
     maybe_uninit_array_assume_init,
     maybe_uninit_uninit_array,
     never_type,
     portable_simd,
     stmt_expr_attributes
 )]
-
 use std::{fmt::Debug, hint::unreachable_unchecked};
 
 use aoc_runner_derive::aoc_lib;
