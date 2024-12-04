@@ -23,11 +23,7 @@ unsafe fn iter_offset<const MATCH: u8>(
     start: usize,
     end: usize,
 ) -> impl Iterator<Item = usize> + '_ {
-    input[start..end]
-        .iter()
-        .enumerate()
-        .filter(|(_, &c)| c == MATCH)
-        .map(move |(n, _)| n + start)
+    (start..end).filter(|&n| *input.get_unchecked(n) == MATCH)
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
