@@ -44,20 +44,14 @@ pub fn part2(input: &str) -> u32 {
 unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
     for a_pos in Memchr::new(b'A', input) {
-        let first = [
-            input.get(a_pos.wrapping_sub(LINE_LEN + 1)),
-            input.get(a_pos + LINE_LEN + 1),
-        ];
-        let first_valid =
-            first == [Some(&b'M'), Some(&b'S')] || first == [Some(&b'S'), Some(&b'M')];
+        let first_valid = (input.get(a_pos.wrapping_sub(LINE_LEN + 1)).unwrap_or(&0)
+            ^ input.get(a_pos + LINE_LEN + 1).unwrap_or(&0))
+            == 30;
 
-        let both_valid = first_valid && {
-            let second = [
-                input.get(a_pos.wrapping_sub(LINE_LEN - 1)),
-                input.get(a_pos + LINE_LEN - 1),
-            ];
-            second == [Some(&b'M'), Some(&b'S')] || second == [Some(&b'S'), Some(&b'M')]
-        };
+        let both_valid = first_valid
+            && (input.get(a_pos.wrapping_sub(LINE_LEN - 1)).unwrap_or(&0)
+                ^ input.get(a_pos + LINE_LEN - 1).unwrap_or(&0))
+                == 30;
 
         count += both_valid as u32;
     }
