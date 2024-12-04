@@ -4,6 +4,7 @@ use aoc_runner_derive::aoc;
 use memchr::{
     arch::all::packedpair::HeuristicFrequencyRank,
     memmem::{find_iter, FindIter, FinderBuilder},
+    Memchr,
 };
 
 use crate::debug;
@@ -47,41 +48,41 @@ pub fn part1(input: &str) -> u32 {
 
         let mut sum = 0;
 
-        let finder = FinderBuilder::new().build_forward_with_ranker(Aoc3, "mul(".as_bytes());
-        let iter = finder.find_iter(input);
+        let iter = Memchr::new(b'u', input);
 
         debug!("Match counts: {}", iter.clone().count());
         for partial_match_pos in iter {
-            match &input[(partial_match_pos + 4)..] {
-                [num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+            match &input[(partial_match_pos + 1)..] {
+                [b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                     sum += p!(num1) * p!(num2);
                 }
-                [num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                     sum += p!(num1_1, num1_2) * p!(num2)
                 }
-                [num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                     sum += p!(num1_1, num1_2, num1_3) * p!(num2)
                 }
-                [num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] => {
+                [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+                {
                     sum += p!(num1) * p!(num2_1, num2_2);
                 }
-                [num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
                 }
-                [num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
                 }
-                [num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+                [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1) * p!(num2_1, num2_2, num2_3);
                 }
-                [num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
                 }
-                [num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+                [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
                 {
                     let num1 = p!(num1_1, num1_2, num1_3);
                     let num2 = p!(num2_1, num2_2, num2_3);
@@ -108,12 +109,12 @@ struct MultiIter<'a> {
     curr1: Option<usize>,
     curr2: Option<usize>,
 
-    iter1: FindIter<'a, 'a>,
+    iter1: Memchr<'a>,
     iter2: FindIter<'a, 'a>,
 }
 
 impl<'a> MultiIter<'a> {
-    fn new(mut iter1: FindIter<'a, 'a>, mut iter2: FindIter<'a, 'a>) -> Self {
+    fn new(mut iter1: Memchr<'a>, mut iter2: FindIter<'a, 'a>) -> Self {
         Self {
             curr1: iter1.next(),
             curr2: iter2.next(),
@@ -164,61 +165,59 @@ pub fn part2(input: &str) -> u32 {
     unsafe fn inner(input: &str) -> u32 {
         let mut input = input.as_bytes();
 
-        let finder_mul = FinderBuilder::new().build_forward_with_ranker(Aoc3, "mul(".as_bytes());
-        let iter_mul = finder_mul.find_iter(input);
+        let iter_mul = Memchr::new(b'u', input);
 
-        let finder_dont =
-            FinderBuilder::new().build_forward_with_ranker(Aoc3, "don't()".as_bytes());
+        let finder_dont = FinderBuilder::new().build_forward_with_ranker(Aoc3, "'t".as_bytes());
         let iter_dont = finder_dont.find_iter(input);
 
         let mut iter = MultiIter::new(iter_mul, iter_dont);
-        let finder_do = FinderBuilder::new().build_forward_with_ranker(Aoc3, "do()".as_bytes());
+        let finder_do = FinderBuilder::new().build_forward_with_ranker(Aoc3, "do(".as_bytes());
 
         let mut sum = 0;
         let mut enabled = true;
         while let Some(partial_match_pos) = iter.next() {
             match &input[partial_match_pos..] {
-                [b'd', b'o', b'n', b'\'', b't', b'(', b')', ..] => {
+                [b'\'', b't', ..] => {
                     let Some(pos) = finder_do.find_iter(&input[partial_match_pos..]).next() else {
                         break;
                     };
 
                     input = &input[partial_match_pos + pos + 4..];
-                    let iter_mul = finder_mul.find_iter(input);
+                    let iter_mul = Memchr::new(b'u', input);
                     let iter_dont = finder_dont.find_iter(input);
 
                     iter = MultiIter::new(iter_mul, iter_dont);
                 }
-                [b'm', b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                [b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                     sum += p!(num1) * p!(num2);
                 }
-                [b'm', b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                     sum += p!(num1_1, num1_2) * p!(num2)
                 }
-                [b'm', b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
+                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                     sum += p!(num1_1, num1_2, num1_3) * p!(num2)
                 }
-                [b'm', b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+                [b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1) * p!(num2_1, num2_2);
                 }
-                [b'm', b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
                 }
-                [b'm', b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
+                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
                 }
-                [b'm', b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+                [b'u', b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1) * p!(num2_1, num2_2, num2_3);
                 }
-                [b'm', b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
                 {
                     sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
                 }
-                [b'm', b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
+                [b'u', b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
                 {
                     let num1 = p!(num1_1, num1_2, num1_3);
                     let num2 = p!(num2_1, num2_2, num2_3);
