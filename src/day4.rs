@@ -1,3 +1,5 @@
+use std::{cmp::min, mem::transmute};
+
 use aoc_runner_derive::aoc;
 use memchr::Memchr;
 
@@ -6,18 +8,35 @@ pub fn part1(input: &str) -> u32 {
     unsafe { part1_inner::<141>(input.as_bytes()) }
 }
 
+const X: u8 = b'X';
+const M: u8 = b'M';
+const A: u8 = b'A';
+const S: u8 = b'S';
+
+const XMAS: u32 = unsafe { transmute::<[u8; 4], u32>([X, M, A, S]) };
+const SAMX: u32 = unsafe { transmute::<[u8; 4], u32>([S, A, M, X]) };
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
     for x_pos in input
         .iter()
         .enumerate()
-        .filter(|(_, &c)| c == b'X')
+        .filter(|(_, &c)| c == X)
         .map(|(n, _)| n)
     {
+        // Right/left
+        if x_pos + 3 < input.len() {
+            let val = (input.as_ptr().add(x_pos) as *const u32).read_unaligned();
+            count += (val == XMAS) as u32;
+        }
+
+        if x_pos >= 3 {
+            let val = (input.as_ptr().add(x_pos).sub(3) as *const u32).read_unaligned();
+            count += (val == SAMX) as u32;
+        }
+
         for diff in [
-            // Right/left
-            1,
             // Up/down
             LINE_LEN,
             // \
@@ -25,14 +44,14 @@ unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
             // /
             LINE_LEN - 1,
         ] {
-            let valid = input.get(x_pos + diff) == Some(&b'M');
-            let valid = valid && input.get(x_pos + 2 * diff) == Some(&b'A');
-            let valid = valid && input.get(x_pos + 3 * diff) == Some(&b'S');
+            let valid = input.get(x_pos + diff) == Some(&M);
+            let valid = valid && input.get(x_pos + 2 * diff) == Some(&A);
+            let valid = valid && input.get(x_pos + 3 * diff) == Some(&S);
             count += valid as u32;
 
-            let valid = input.get(x_pos.wrapping_sub(diff)) == Some(&b'M');
-            let valid = valid && input.get(x_pos.wrapping_sub(2 * diff)) == Some(&b'A');
-            let valid = valid && input.get(x_pos.wrapping_sub(3 * diff)) == Some(&b'S');
+            let valid = input.get(x_pos.wrapping_sub(diff)) == Some(&M);
+            let valid = valid && input.get(x_pos.wrapping_sub(2 * diff)) == Some(&A);
+            let valid = valid && input.get(x_pos.wrapping_sub(3 * diff)) == Some(&S);
             count += valid as u32;
         }
     }
@@ -51,7 +70,7 @@ unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     for a_pos in input
         .iter()
         .enumerate()
-        .filter(|(_, &c)| c == b'A')
+        .filter(|(_, &c)| c == A)
         .map(|(n, _)| n)
     {
         let first_valid = (input.get(a_pos.wrapping_sub(LINE_LEN + 1)).unwrap_or(&0)
@@ -104,5 +123,15 @@ MXMXAXMASX";
     #[test]
     fn p2_real() {
         assert_eq!(unsafe { part2(REAL_INPUT) }, 1_950);
+    }
+
+    #[test]
+    fn p1_simplest() {
+        assert_eq!(unsafe { part1_inner::<4>("XMAS".as_bytes()) }, 1);
+    }
+
+    #[test]
+    fn p1_simplest_backward() {
+        assert_eq!(unsafe { part1_inner::<4>("SAMX".as_bytes()) }, 1);
     }
 }
