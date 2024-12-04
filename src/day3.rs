@@ -1,4 +1,10 @@
-use std::cmp::min;
+use std::{
+    cmp::min,
+    simd::{
+        cmp::{SimdPartialEq as _, SimdPartialOrd as _},
+        Mask, Simd,
+    },
+};
 
 use aoc_runner_derive::aoc;
 use memchr::{
@@ -7,17 +13,17 @@ use memchr::{
     Memchr,
 };
 
-use crate::debug;
+use crate::{debug, Assume, Unreachable};
 
 macro_rules! p {
-    ($num:ident) => {
-        ($num - b'0') as u32
+    ($num:expr) => {
+        ($num as u32)
     };
-    ($tens:ident, $units:ident) => {
-        (($tens - b'0') * 10 + $units - b'0') as u32
+    ($tens:expr, $units:expr) => {
+        ($tens as u32 * 10 + $units as u32)
     };
-    ($hundreds:ident, $tens:ident, $units:ident) => {
-        (($hundreds - b'0') as u32 * 100 + ($tens - b'0') as u32 * 10 + ($units - b'0') as u32)
+    ($hundreds:expr, $tens:expr, $units:expr) => {
+        ($hundreds as u32 * 100 + $tens as u32 * 10 + $units as u32)
     };
 }
 
@@ -45,57 +51,81 @@ pub fn part1(input: &str) -> u32 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner_part1(input: &[u8]) -> u32 {
+unsafe fn inner_part1(mut input: &[u8]) -> u32 {
     let mut sum = 0;
 
-    let iter = Memchr::new(b'u', input);
-
-    debug!("Match counts: {}", iter.clone().count());
-    for partial_match_pos in iter {
-        match &input[partial_match_pos + 1..] {
-            [b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                sum += p!(num1) * p!(num2);
-            }
-            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                sum += p!(num1_1, num1_2) * p!(num2)
-            }
-            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                sum += p!(num1_1, num1_2, num1_3) * p!(num2)
-            }
-            [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-            {
-                sum += p!(num1) * p!(num2_1, num2_2);
-            }
-            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-            {
-                sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
-            }
-            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
-            {
-                sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
-            }
-            [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-            {
-                sum += p!(num1) * p!(num2_1, num2_2, num2_3);
-            }
-            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-            {
-                sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
-            }
-            [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
-            {
-                let num1 = p!(num1_1, num1_2, num1_3);
-                let num2 = p!(num2_1, num2_2, num2_3);
-                debug!("{num1} * {num2}");
-                sum += num1 * num2;
-            }
-            arr => {
-                debug!(
-                    "Unexpected values: {:?}",
-                    std::str::from_utf8(&arr[..(min(arr.len(), 10))]).unwrap()
-                )
-            }
+    while !input.is_empty() {
+        debug!(
+            "Line: {}",
+            std::str::from_utf8(&input[..min(64, input.len())]).unwrap()
+        );
+        let line = Simd::<u8, 64>::load_or(input, Simd::splat(0));
+        let u_pos = line
+            .simd_eq(Simd::splat(b'u'))
+            .to_bitmask()
+            .trailing_zeros() as usize;
+        if u_pos != 0 {
+            debug!("u at {u_pos}");
+            input = &input[min(u_pos, input.len())..];
+            continue;
         }
+
+        // ul(000,000)
+        if line[2] != b'(' {
+            debug!("Missing (");
+            input = &input[min(3, input.len())..];
+            continue;
+        }
+
+        let line = line.rotate_elements_left::<3>().resize::<16>(0);
+        let digits = line - Simd::splat(b'0');
+        let digit_mask = digits.simd_lt(Simd::splat(10));
+
+        let comma_pos = digit_mask.to_bitmask().trailing_ones() as usize;
+        if line[comma_pos] != b',' {
+            debug!("Missing ,");
+            input = &input[min(comma_pos, input.len())..];
+            continue;
+        }
+
+        let shifted_digit_mask = digit_mask.to_bitmask() >> (comma_pos + 1);
+        let end_bracket_pos = comma_pos + 1 + shifted_digit_mask.trailing_ones() as usize;
+        input = &input[min(end_bracket_pos, input.len())..];
+        if line[end_bracket_pos] != b')' {
+            debug!("{}", std::str::from_utf8(line.as_array()).unwrap());
+            debug!("Missing ) at {end_bracket_pos}");
+            debug!("{shifted_digit_mask:b}, {comma_pos}");
+            continue;
+        }
+
+        // let tens_mask = Mask::from_bitmask(digit_mask.to_bitmask() >> 1) & digit_mask;
+        // let hundreds_mask = Mask::from_bitmask(tens_mask.to_bitmask() >> 1) & digit_mask;
+        // let units_mask = digit_mask & !tens_mask & !hundreds_mask;
+        // let fake_tens_mask = units_mask.to_bitmask() >> 1;
+
+        let digit_bitmask = digit_mask.to_bitmask() & 0b1111111;
+        debug!(
+            "\nline: {}\nmask: {digit_bitmask:b}",
+            std::str::from_utf8(line.as_array()).unwrap()
+        );
+        sum += match digit_bitmask {
+            0b101 => p!(digits[0]) * p!(digits[2]),
+            0b1011 => p!(digits[0], digits[1]) * p!(digits[3]),
+            0b10111 => p!(digits[0], digits[1], digits[2]) * p!(digits[4]),
+            0b1101 => p!(digits[0]) * p!(digits[2], digits[3]),
+            0b11011 => p!(digits[0], digits[1]) * p!(digits[3], digits[4]),
+            0b110111 => p!(digits[0], digits[1], digits[2]) * p!(digits[4], digits[5]),
+            0b11101 => p!(digits[0]) * p!(digits[2], digits[3], digits[4]),
+            0b111011 => p!(digits[0], digits[1]) * p!(digits[3], digits[4], digits[5]),
+            0b1110111 => p!(digits[0], digits[1], digits[2]) * p!(digits[4], digits[5], digits[6]),
+            mask => {
+                debug!("Unreachable mask: {mask:b}");
+                Unreachable.assume();
+            }
+        };
+        debug!("Sum: {sum}");
+
+        input = &input[min(end_bracket_pos, input.len())..];
     }
 
     sum
