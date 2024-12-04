@@ -1,3 +1,5 @@
+use std::simd::{cmp::SimdPartialEq as _, Simd};
+
 use aoc_runner_derive::aoc;
 use memchr::Memchr;
 
@@ -20,14 +22,21 @@ unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
             // /
             LINE_LEN - 1,
         ] {
-            let valid = input.get(x_pos + diff) == Some(&b'M');
-            let valid = valid && input.get(x_pos + 2 * diff) == Some(&b'A');
-            let valid = valid && input.get(x_pos + 3 * diff) == Some(&b'S');
+            let valid = Simd::gather_or_default(
+                input,
+                Simd::from_array([x_pos, x_pos + diff, x_pos + 2 * diff, x_pos + 3 * diff]),
+            ) == Simd::from_array([b'X', b'M', b'A', b'S']);
             count += valid as u32;
 
-            let valid = input.get(x_pos.wrapping_sub(diff)) == Some(&b'M');
-            let valid = valid && input.get(x_pos.wrapping_sub(2 * diff)) == Some(&b'A');
-            let valid = valid && input.get(x_pos.wrapping_sub(3 * diff)) == Some(&b'S');
+            let valid = Simd::gather_or_default(
+                input,
+                Simd::from_array([
+                    x_pos,
+                    x_pos.wrapping_sub(diff),
+                    x_pos.wrapping_sub(2 * diff),
+                    x_pos.wrapping_sub(3 * diff),
+                ]),
+            ) == Simd::from_array([b'X', b'M', b'A', b'S']);
             count += valid as u32;
         }
     }
