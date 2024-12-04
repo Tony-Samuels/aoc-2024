@@ -25,6 +25,10 @@ harness = false
 name = "day3"
 harness = false
 
+[[bench]]
+name = "day4"
+harness = false
+
 [[bin]]
 name = "rank3"
 test = false
