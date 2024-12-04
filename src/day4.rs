@@ -1,4 +1,4 @@
-use std::{cmp::min, mem::transmute};
+use std::{cmp::min, mem::transmute, num::NonZero};
 
 use aoc_runner_derive::aoc;
 use memchr::Memchr;
@@ -8,17 +8,20 @@ pub fn part1(input: &str) -> u32 {
     unsafe { part1_inner::<141>(input.as_bytes()) }
 }
 
-const X: u8 = b'X';
-const M: u8 = b'M';
-const A: u8 = b'A';
-const S: u8 = b'S';
+const X: NonZero<u8> = NonZero::new(b'X').unwrap();
+const M: NonZero<u8> = NonZero::new(b'M').unwrap();
+const A: NonZero<u8> = NonZero::new(b'A').unwrap();
+const S: NonZero<u8> = NonZero::new(b'S').unwrap();
 
-const XMAS: u32 = unsafe { transmute::<[u8; 4], u32>([X, M, A, S]) };
-const SAMX: u32 = unsafe { transmute::<[u8; 4], u32>([S, A, M, X]) };
+const XMAS: u32 = unsafe { transmute::<[NonZero<u8>; 4], u32>([X, M, A, S]) };
+const SAMX: u32 = unsafe { transmute::<[NonZero<u8>; 4], u32>([S, A, M, X]) };
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
+
+    let input = transmute::<&[u8], &[NonZero<u8>]>(input);
+
     for x_pos in input
         .iter()
         .enumerate()
@@ -44,14 +47,14 @@ unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
             // /
             LINE_LEN - 1,
         ] {
-            let valid = input.get(x_pos + diff) == Some(&M);
-            let valid = valid && input.get(x_pos + 2 * diff) == Some(&A);
-            let valid = valid && input.get(x_pos + 3 * diff) == Some(&S);
+            let valid = some_or_0((input.get(x_pos + diff))) == M.into();
+            let valid = valid && some_or_0((input.get(x_pos + 2 * diff))) == A.into();
+            let valid = valid && some_or_0((input.get(x_pos + 3 * diff))) == S.into();
             count += valid as u32;
 
-            let valid = input.get(x_pos.wrapping_sub(diff)) == Some(&M);
-            let valid = valid && input.get(x_pos.wrapping_sub(2 * diff)) == Some(&A);
-            let valid = valid && input.get(x_pos.wrapping_sub(3 * diff)) == Some(&S);
+            let valid = some_or_0(input.get(x_pos.wrapping_sub(diff))) == M.into();
+            let valid = valid && some_or_0((input.get(x_pos.wrapping_sub(2 * diff)))) == A.into();
+            let valid = valid && some_or_0((input.get(x_pos.wrapping_sub(3 * diff)))) == S.into();
             count += valid as u32;
         }
     }
@@ -64,22 +67,30 @@ pub fn part2(input: &str) -> u32 {
     unsafe { part2_inner::<141>(input.as_bytes()) }
 }
 
+#[inline]
+fn some_or_0(v: Option<&NonZero<u8>>) -> u8 {
+    unsafe { transmute::<Option<NonZero<u8>>, u8>(v.copied()) }
+}
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
+
+    let input = transmute::<&[u8], &[NonZero<u8>]>(input);
+
     for a_pos in input
         .iter()
         .enumerate()
         .filter(|(_, &c)| c == A)
         .map(|(n, _)| n)
     {
-        let first_valid = (input.get(a_pos.wrapping_sub(LINE_LEN + 1)).unwrap_or(&0)
-            ^ input.get(a_pos + LINE_LEN + 1).unwrap_or(&0))
+        let first_valid = (some_or_0(input.get(a_pos.wrapping_sub(LINE_LEN + 1)))
+            ^ some_or_0(input.get(a_pos + LINE_LEN + 1)))
             == 30;
 
         let both_valid = first_valid
-            && (input.get(a_pos.wrapping_sub(LINE_LEN - 1)).unwrap_or(&0)
-                ^ input.get(a_pos + LINE_LEN - 1).unwrap_or(&0))
+            && (some_or_0(input.get(a_pos.wrapping_sub(LINE_LEN - 1)))
+                ^ some_or_0(input.get(a_pos + LINE_LEN - 1)))
                 == 30;
 
         count += both_valid as u32;
