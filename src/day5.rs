@@ -1,28 +1,20 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, mem::transmute};
 
 use aoc_runner_derive::aoc;
 
 use crate::{assume, debug, Assume, Unreachable};
 
+const ZERO_ZERO: u16 = unsafe { transmute::<[u8; 2], u16>(*b"00") };
 const ZERO: u8 = b'0';
 
 static mut RULES: [u128; 100] = [0; 100];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[inline]
-unsafe fn p(n1: u8, n2: u8) -> u8 {
-    assume!(
-        n1.wrapping_sub(ZERO) < 10,
-        "Not a digit: {n1} {n1:x} {}",
-        n1 as char
-    );
-    assume!(
-        n2.wrapping_sub(ZERO) < 10,
-        "Not a digit: {n2} {n2:x} {}",
-        n2 as char
-    );
+unsafe fn p(n: u16) -> u8 {
+    let [n1, n2] = (n - ZERO_ZERO).to_ne_bytes();
 
-    (n1 - ZERO) * 10 + n2 - ZERO
+    n1 * 10 + n2
 }
 
 const RULE_LINES: usize = 1_176;
@@ -30,21 +22,16 @@ const RULE_LINES: usize = 1_176;
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn parse_rules(input: &[u8]) {
     for line in 0..RULE_LINES {
-        let [n1_1, n1_2] = input
-            .as_ptr()
-            .add(line * 6)
-            .cast::<[u8; 2]>()
-            .read_unaligned();
-        let n1 = p(n1_1, n1_2);
+        let n1 = input.as_ptr().add(line * 6).cast::<u16>().read_unaligned();
+        let n1 = p(n1);
 
-        let [n2_1, n2_2] = input
+        let n2 = input
             .as_ptr()
             .add(line * 6 + 3)
-            .cast::<[u8; 2]>()
+            .cast::<u16>()
             .read_unaligned();
-        let n2 = p(n2_1, n2_2);
+        let n2 = p(n2);
 
-        assume!(n1 != n2, "{n1} must be before {n2}?!?");
         RULES[n1 as usize] |= 1 << n2;
     }
 }
@@ -71,12 +58,12 @@ unsafe fn inner_p1(input: &str) -> i32 {
                 "Curr: {}",
                 std::str::from_utf8(&input[offset..offset + 3]).unwrap()
             );
-            let [n1, n2, term] = input
+            let (n, term) = input
                 .as_ptr()
                 .add(offset)
-                .cast::<[u8; 3]>()
+                .cast::<(u16, u8)>()
                 .read_unaligned();
-            let num = p(n1, n2);
+            let num = p(n);
             seen |= 1 << num;
             offset += 3;
 
@@ -93,12 +80,12 @@ unsafe fn inner_p1(input: &str) -> i32 {
 
         if valid {
             let line_end = offset;
-            let [n1, n2] = input
+            let n = input
                 .as_ptr()
                 .add((line_start + line_end) / 2 - 1)
-                .cast::<[u8; 2]>()
+                .cast::<u16>()
                 .read_unaligned();
-            let midpoint = p(n1, n2) as i32;
+            let midpoint = p(n) as i32;
             debug!("Midpoint: {midpoint}");
             result += midpoint;
         }
@@ -132,12 +119,12 @@ unsafe fn inner_p2(input: &str) -> i32 {
                 "Curr: {}",
                 std::str::from_utf8(&input[offset..offset + 3]).unwrap()
             );
-            let [n1, n2, term] = input
+            let (n, term) = input
                 .as_ptr()
                 .add(offset)
-                .cast::<[u8; 3]>()
+                .cast::<(u16, u8)>()
                 .read_unaligned();
-            let num = p(n1, n2);
+            let num = p(n);
             nums[(offset - line_start) / 3] = num;
 
             seen |= 1 << num;
