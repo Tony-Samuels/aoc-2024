@@ -25,8 +25,10 @@ unsafe fn p(n1: u8, n2: u8) -> u8 {
     (n1 - ZERO) * 10 + n2 - ZERO
 }
 
+const RULE_LINES: usize = 1_176;
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn parse_rules<const RULE_LINES: usize>(input: &[u8]) {
+unsafe fn parse_rules(input: &[u8]) {
     for line in 0..RULE_LINES {
         let [n1_1, n1_2] = input
             .as_ptr()
@@ -49,13 +51,13 @@ unsafe fn parse_rules<const RULE_LINES: usize>(input: &[u8]) {
 
 #[aoc(day5, part1)]
 pub fn part1(input: &str) -> i32 {
-    unsafe { inner_p1::<1_176>(input) }
+    unsafe { inner_p1(input) }
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner_p1<const RULE_LINES: usize>(input: &str) -> i32 {
+unsafe fn inner_p1(input: &str) -> i32 {
     let input = input.as_bytes();
-    parse_rules::<RULE_LINES>(input);
+    parse_rules(input);
     let mut offset = RULE_LINES * 6 + 1;
 
     let mut result = 0;
@@ -107,23 +109,21 @@ unsafe fn inner_p1<const RULE_LINES: usize>(input: &str) -> i32 {
 
 #[aoc(day5, part2)]
 pub fn part2(input: &str) -> i32 {
-    unsafe { inner_p2::<1_176>(input) }
+    unsafe { inner_p2(input) }
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner_p2<const RULE_LINES: usize>(input: &str) -> i32 {
+unsafe fn inner_p2(input: &str) -> i32 {
     let input = input.as_bytes();
-    parse_rules::<RULE_LINES>(input);
+    parse_rules(input);
 
     let mut offset = RULE_LINES * 6 + 1;
-
+    let mut nums = [0; 23];
     let mut result = 0;
 
     while input.len() > offset + 3 {
         let mut seen = 0u128;
         let line_start = offset;
-
-        let mut nums = [0; 23];
 
         let mut unsorted = false;
 
