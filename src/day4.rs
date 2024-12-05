@@ -158,7 +158,7 @@ unsafe fn right(input: &[u8], x_pos: usize) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[inline]
 unsafe fn left(input: &[u8], x_pos: usize) -> u32 {
-    ((input.as_ptr().add(x_pos).sub(3) as *const u32).read_unaligned() == SAMX) as u32
+    ((input.as_ptr().add(x_pos - 3) as *const u32).read_unaligned() == SAMX) as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
