@@ -29,6 +29,10 @@ harness = false
 name = "day4"
 harness = false
 
+[[bench]]
+name = "day5"
+harness = false
+
 [[bin]]
 name = "rank3"
 test = false
@@ -36,3 +40,4 @@ bench = false
 
 [dev-dependencies]
 criterion = { package = "codspeed-criterion-compat", version = "2" }
+indoc = "2"

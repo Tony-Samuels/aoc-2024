@@ -1,0 +1,48 @@
+use aoc_runner_derive::aoc;
+
+#[aoc(day{}, part1)]
+pub fn part1(input: &str) -> i32 {
+    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+    unsafe fn inner(input: &str) -> i32 {
+    	0
+    }
+    unsafe { inner(input) }
+}
+
+#[aoc(day{}, part2)]
+pub fn part2(input: &str) -> i32 {
+    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+    unsafe fn inner(input: &str) -> i32 {
+    	0
+    }
+    unsafe { inner(input) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const INPUT: &str = "";
+
+    #[test]
+    fn p1_example() {
+        assert_eq!( part1(INPUT) , {} );
+    }
+
+    #[test]
+    fn p2_example() {
+        assert_eq!( part2(INPUT) , {} );
+    }
+
+    #[test]
+    fn real_p1() {
+        let input = include_str!("../input/2024/day{}.txt");
+        assert_eq!(part1(input), {}});
+    }
+
+    #[test]
+    fn real_p2() {
+        let input = include_str!("../input/2024/day{}.txt");
+        assert_eq!(part2(input), {}});
+    }
+}
