@@ -2,7 +2,7 @@ use std::{cmp::min, mem::transmute};
 
 use aoc_runner_derive::aoc;
 
-use crate::{assume, debug};
+use crate::{assume, debug, Assume, Unreachable};
 
 #[aoc(day4, part1)]
 pub fn part1(input: &str) -> u32 {
@@ -191,16 +191,19 @@ unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
 
     for a_pos in iter_offset::<A>(input, LINE_LEN + 1, len - LINE_LEN - 1) {
-        let first_valid = (input.get_unchecked(a_pos - (LINE_LEN + 1))
-            ^ input.get_unchecked(a_pos + LINE_LEN + 1))
-            == 30;
+        let [top_left, _, top_right] = input
+            .as_ptr()
+            .add(a_pos - (LINE_LEN + 1))
+            .cast::<[u8; 3]>()
+            .read_unaligned();
 
-        let both_valid = first_valid
-            && (input.get_unchecked(a_pos - (LINE_LEN - 1))
-                ^ input.get_unchecked(a_pos + LINE_LEN - 1))
-                == 30;
+        let [bottom_left, _, bottom_right] = input
+            .as_ptr()
+            .add(a_pos + (LINE_LEN - 1))
+            .cast::<[u8; 3]>()
+            .read_unaligned();
 
-        count += both_valid as u32;
+        count += ((top_left ^ bottom_right) == 30 && (bottom_left ^ top_right) == 30) as u32;
     }
 
     count
