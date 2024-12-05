@@ -52,113 +52,64 @@ where
 
     // Top few can't have up, left
     for pos in iter_offset(input, 0, 3) {
-        count += right(input, pos);
-        debug!("Count: {count}");
         count += down(input, pos);
-        debug!("Count: {count}");
         count += down_right(input, pos);
-        debug!("Count: {count}");
     }
 
     // Top few lines can't have up
     for x_pos in iter_offset(input, 3, LINE_LEN * 3) {
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
         count += down_left(input, x_pos);
-        debug!("Count: {count}");
         count += down(input, x_pos);
-        debug!("Count: {count}");
         count += down_right(input, x_pos);
-        debug!("Count: {count}");
     }
 
     // First few on line 4 can't have left
     for pos in iter_offset(input, LINE_LEN * 3, LINE_LEN * 3 + 3) {
         count += up(input, pos);
-        debug!("Count: {count}");
         count += up_right(input, pos);
-        debug!("Count: {count}");
-        count += right(input, pos);
-        debug!("Count: {count}");
         count += down(input, pos);
-        debug!("Count: {count}");
         count += down_right(input, pos);
-        debug!("Count: {count}");
     }
 
     let main_end = len - (LINE_LEN * 3 + 3);
     for x_pos in iter_offset(input, LINE_LEN * 3 + 3, main_end) {
         count += up_left(input, x_pos);
-        debug!("Count: {count}");
         count += up(input, x_pos);
-        debug!("Count: {count}");
         count += up_right(input, x_pos);
-        debug!("Count: {count}");
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
         count += down_left(input, x_pos);
-        debug!("Count: {count}");
         count += down(input, x_pos);
-        debug!("Count: {count}");
         count += down_right(input, x_pos);
-        debug!("Count: {count}");
     }
 
     // Last few on 4th last line can't have right
     for pos in iter_offset(input, main_end, main_end + 3) {
         count += up_left(input, pos);
-        debug!("Count: {count}");
         count += up(input, pos);
-        debug!("Count: {count}");
-        count += left(input, pos);
-        debug!("Count: {count}");
         count += down_left(input, pos);
-        debug!("Count: {count}");
         count += down(input, pos);
-        debug!("Count: {count}");
     }
 
     // Bottom few lines can't have down
     for x_pos in iter_offset(input, len - LINE_LEN * 3, len - 3) {
         count += up_left(input, x_pos);
-        debug!("Count: {count}");
         count += up(input, x_pos);
-        debug!("Count: {count}");
         count += up_right(input, x_pos);
-        debug!("Count: {count}");
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
     }
 
     // Last few can't have right, down
     for pos in iter_offset(input, len - 3, len) {
         count += up_left(input, pos);
-        debug!("Count: {count}");
         count += up(input, pos);
-        debug!("Count: {count}");
-        count += left(input, pos);
-        debug!("Count: {count}");
+    }
+
+    // All left & right scans
+    let mut scan = 0;
+    for index in 0..len {
+        scan = (scan << 8) | input[index] as u32;
+        count += (scan == XMAS || scan == SAMX) as u32;
     }
 
     count
-}
-
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-#[inline]
-unsafe fn right(input: &[u8], x_pos: usize) -> u32 {
-    (input.as_ptr().add(x_pos).cast::<u32>().read_unaligned() == XMAS) as u32
-}
-
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-#[inline]
-unsafe fn left(input: &[u8], x_pos: usize) -> u32 {
-    (input.as_ptr().add(x_pos - 3).cast::<u32>().read_unaligned() == SAMX) as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
