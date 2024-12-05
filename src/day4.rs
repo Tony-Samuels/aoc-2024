@@ -152,13 +152,13 @@ where
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[inline]
 unsafe fn right(input: &[u8], x_pos: usize) -> u32 {
-    ((input.as_ptr().add(x_pos) as *const u32).read_unaligned() == XMAS) as u32
+    (input.as_ptr().add(x_pos).cast::<u32>().read_unaligned() == XMAS) as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[inline]
 unsafe fn left(input: &[u8], x_pos: usize) -> u32 {
-    ((input.as_ptr().add(x_pos - 3) as *const u32).read_unaligned() == SAMX) as u32
+    (input.as_ptr().add(x_pos - 3).cast::<u32>().read_unaligned() == SAMX) as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
