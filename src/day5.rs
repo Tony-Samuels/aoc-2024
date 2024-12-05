@@ -125,7 +125,7 @@ unsafe fn inner_p2<const RULE_LINES: usize>(input: &str) -> i32 {
         let mut seen = 0u128;
         let line_start = offset;
 
-        let mut nums = [0; 33];
+        let mut nums = [0; 23];
 
         let mut unsorted = false;
 
