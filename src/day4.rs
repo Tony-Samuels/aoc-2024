@@ -1,4 +1,10 @@
-use std::{cmp::min, mem::transmute};
+use std::{
+    cmp::min,
+    mem::transmute,
+    simd::{
+        cmp::SimdPartialEq, num::SimdInt, ptr::SimdConstPtr, LaneCount, Simd, SupportedLaneCount,
+    },
+};
 
 use aoc_runner_derive::aoc;
 
@@ -53,97 +59,69 @@ where
     // Top few can't have up, left
     for pos in iter_offset(input, 0, 3) {
         count += right(input, pos);
-        debug!("Count: {count}");
         count += down(input, pos);
-        debug!("Count: {count}");
         count += down_right(input, pos);
-        debug!("Count: {count}");
     }
 
     // Top few lines can't have up
     for x_pos in iter_offset(input, 3, LINE_LEN * 3) {
         count += left(input, x_pos);
-        debug!("Count: {count}");
         count += right(input, x_pos);
-        debug!("Count: {count}");
         count += down_left(input, x_pos);
-        debug!("Count: {count}");
         count += down(input, x_pos);
-        debug!("Count: {count}");
         count += down_right(input, x_pos);
-        debug!("Count: {count}");
     }
 
     // First few on line 4 can't have left
     for pos in iter_offset(input, LINE_LEN * 3, LINE_LEN * 3 + 3) {
         count += up(input, pos);
-        debug!("Count: {count}");
         count += up_right(input, pos);
-        debug!("Count: {count}");
         count += right(input, pos);
-        debug!("Count: {count}");
         count += down(input, pos);
-        debug!("Count: {count}");
         count += down_right(input, pos);
-        debug!("Count: {count}");
     }
 
     let main_end = len - (LINE_LEN * 3 + 3);
     for x_pos in iter_offset(input, LINE_LEN * 3 + 3, main_end) {
-        count += up_left(input, x_pos);
-        debug!("Count: {count}");
-        count += up(input, x_pos);
-        debug!("Count: {count}");
-        count += up_right(input, x_pos);
-        debug!("Count: {count}");
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
-        count += down_left(input, x_pos);
-        debug!("Count: {count}");
-        count += down(input, x_pos);
-        debug!("Count: {count}");
-        count += down_right(input, x_pos);
-        debug!("Count: {count}");
+        let line = LINE_LEN as isize;
+        count += diffs(
+            input.as_ptr().add(x_pos),
+            [
+                1,
+                -1,
+                line,
+                -line,
+                line + 1,
+                -(line + 1),
+                line - 1,
+                -(line - 1),
+            ],
+        );
     }
 
     // Last few on 4th last line can't have right
     for pos in iter_offset(input, main_end, main_end + 3) {
         count += up_left(input, pos);
-        debug!("Count: {count}");
         count += up(input, pos);
-        debug!("Count: {count}");
         count += left(input, pos);
-        debug!("Count: {count}");
         count += down_left(input, pos);
-        debug!("Count: {count}");
         count += down(input, pos);
-        debug!("Count: {count}");
     }
 
     // Bottom few lines can't have down
     for x_pos in iter_offset(input, len - LINE_LEN * 3, len - 3) {
         count += up_left(input, x_pos);
-        debug!("Count: {count}");
         count += up(input, x_pos);
-        debug!("Count: {count}");
         count += up_right(input, x_pos);
-        debug!("Count: {count}");
         count += left(input, x_pos);
-        debug!("Count: {count}");
         count += right(input, x_pos);
-        debug!("Count: {count}");
     }
 
     // Last few can't have right, down
     for pos in iter_offset(input, len - 3, len) {
         count += up_left(input, pos);
-        debug!("Count: {count}");
         count += up(input, pos);
-        debug!("Count: {count}");
         count += left(input, pos);
-        debug!("Count: {count}");
     }
 
     count
@@ -175,6 +153,22 @@ unsafe fn line_neg<const DIFF: usize>(input: &[u8], x_pos: usize) -> u32 {
     (*input.get_unchecked(x_pos - DIFF) == M
         && *input.get_unchecked(x_pos - 2 * DIFF) == A
         && *input.get_unchecked(x_pos - 3 * DIFF) == S) as u32
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
+unsafe fn diffs<const N: usize>(ptr: *const u8, diffs: [isize; N]) -> u32
+where
+    LaneCount<N>: SupportedLaneCount,
+{
+    let input = Simd::<*const u8, N>::splat(ptr);
+    (Simd::gather_ptr(input.wrapping_offset(Simd::from_array(diffs))).simd_eq(Simd::splat(M))
+        & Simd::gather_ptr(input.wrapping_offset(Simd::from_array(diffs) * Simd::splat(2)))
+            .simd_eq(Simd::splat(A))
+        & Simd::gather_ptr(input.wrapping_offset(Simd::from_array(diffs) * Simd::splat(3)))
+            .simd_eq(Simd::splat(S)))
+    .to_int()
+    .reduce_sum() as u32
 }
 
 #[aoc(day4, part2)]
@@ -326,5 +320,61 @@ M.S
 "
         .as_bytes();
         assert_eq!(unsafe { part2_inner::<4>(input) }, 1);
+    }
+
+    #[test]
+    fn simd_diff() {
+        let input = "XMAS".as_bytes();
+        assert_eq!(unsafe { diffs(input.as_ptr(), [1]) }, 1);
+
+        // Multiple directions
+        let input = "XMAS
+M...
+A...
+S..."
+            .as_bytes();
+        assert_eq!(unsafe { diffs(input.as_ptr(), [1, 5]) }, 2);
+
+        // Diagonal
+        let input = "X...
+.M..
+..A.
+...S"
+            .as_bytes();
+        assert_eq!(unsafe { diffs(input.as_ptr(), [6]) }, 1);
+
+        // All directions
+        let input = "
+S..S..S
+.A.A.A.
+..MMM..
+SAMXMAS
+..MMM..
+.A.A.A.
+S..S..S
+"
+        .as_bytes();
+
+        let line = 8;
+        assert_eq!(
+            unsafe {
+                diffs(
+                    input
+                        .as_ptr()
+                        .offset(input.iter().position(|&c| c == X).unwrap() as isize),
+                    [
+                        1,
+                        -1,
+                        line,
+                        -line,
+                        line + 1,
+                        -(line + 1),
+                        line - 1,
+                        -(line - 1),
+                    ],
+                )
+            },
+            8
+        );
     }
 }
