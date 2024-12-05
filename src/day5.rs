@@ -160,13 +160,11 @@ unsafe fn inner_p2<const RULE_LINES: usize>(input: &str) -> i32 {
             let nums = &mut nums[..num_count];
             debug!("Found numbers: {nums:?}");
 
-            nums.sort_by(|&n1, &n2| {
+            nums.select_nth_unstable_by(num_count / 2, |&n1, &n2| {
                 if rules[n1 as usize] & 1 << n2 != 0 {
                     Ordering::Greater
-                } else if rules[n2 as usize] & 1 << n1 != 0 {
-                    Ordering::Less
                 } else {
-                    Ordering::Equal
+                    Ordering::Less
                 }
             });
 
