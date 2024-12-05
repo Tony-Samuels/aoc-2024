@@ -51,100 +51,72 @@ where
     let mut count = 0;
 
     // Top few can't have up, left
-    for pos in iter_offset(input, 0, 3) {
-        count += right(input, pos);
-        debug!("Count: {count}");
-        count += down(input, pos);
-        debug!("Count: {count}");
-        count += down_right(input, pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, 0, 3)
+        .map(|pos| right(input, pos) + down(input, pos) + down_right(input, pos))
+        .sum::<u32>();
 
     // Top few lines can't have up
-    for x_pos in iter_offset(input, 3, LINE_LEN * 3) {
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
-        count += down_left(input, x_pos);
-        debug!("Count: {count}");
-        count += down(input, x_pos);
-        debug!("Count: {count}");
-        count += down_right(input, x_pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, 3, LINE_LEN * 3)
+        .map(|pos| {
+            left(input, pos)
+                + right(input, pos)
+                + down_left(input, pos)
+                + down(input, pos)
+                + down_right(input, pos)
+        })
+        .sum::<u32>();
 
     // First few on line 4 can't have left
-    for pos in iter_offset(input, LINE_LEN * 3, LINE_LEN * 3 + 3) {
-        count += up(input, pos);
-        debug!("Count: {count}");
-        count += up_right(input, pos);
-        debug!("Count: {count}");
-        count += right(input, pos);
-        debug!("Count: {count}");
-        count += down(input, pos);
-        debug!("Count: {count}");
-        count += down_right(input, pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, LINE_LEN * 3, LINE_LEN * 3 + 3)
+        .map(|pos| {
+            up(input, pos)
+                + up_right(input, pos)
+                + right(input, pos)
+                + down(input, pos)
+                + down_right(input, pos)
+        })
+        .sum::<u32>();
 
     let main_end = len - (LINE_LEN * 3 + 3);
-    for x_pos in iter_offset(input, LINE_LEN * 3 + 3, main_end) {
-        count += up_left(input, x_pos);
-        debug!("Count: {count}");
-        count += up(input, x_pos);
-        debug!("Count: {count}");
-        count += up_right(input, x_pos);
-        debug!("Count: {count}");
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
-        count += down_left(input, x_pos);
-        debug!("Count: {count}");
-        count += down(input, x_pos);
-        debug!("Count: {count}");
-        count += down_right(input, x_pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, LINE_LEN * 3 + 3, main_end)
+        .map(|pos| {
+            up_left(input, pos)
+                + up(input, pos)
+                + up_right(input, pos)
+                + left(input, pos)
+                + right(input, pos)
+                + down_left(input, pos)
+                + down(input, pos)
+                + down_right(input, pos)
+        })
+        .sum::<u32>();
 
     // Last few on 4th last line can't have right
-    for pos in iter_offset(input, main_end, main_end + 3) {
-        count += up_left(input, pos);
-        debug!("Count: {count}");
-        count += up(input, pos);
-        debug!("Count: {count}");
-        count += left(input, pos);
-        debug!("Count: {count}");
-        count += down_left(input, pos);
-        debug!("Count: {count}");
-        count += down(input, pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, main_end, main_end + 3)
+        .map(|pos| {
+            up_left(input, pos)
+                + up(input, pos)
+                + left(input, pos)
+                + down_left(input, pos)
+                + down(input, pos)
+        })
+        .sum::<u32>();
 
     // Bottom few lines can't have down
-    for x_pos in iter_offset(input, len - LINE_LEN * 3, len - 3) {
-        count += up_left(input, x_pos);
-        debug!("Count: {count}");
-        count += up(input, x_pos);
-        debug!("Count: {count}");
-        count += up_right(input, x_pos);
-        debug!("Count: {count}");
-        count += left(input, x_pos);
-        debug!("Count: {count}");
-        count += right(input, x_pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, len - LINE_LEN * 3, len - 3)
+        .map(|pos| {
+            up_left(input, pos)
+                + up(input, pos)
+                + up_right(input, pos)
+                + left(input, pos)
+                + right(input, pos)
+        })
+        .sum::<u32>();
 
     // Last few can't have right, down
-    for pos in iter_offset(input, len - 3, len) {
-        count += up_left(input, pos);
-        debug!("Count: {count}");
-        count += up(input, pos);
-        debug!("Count: {count}");
-        count += left(input, pos);
-        debug!("Count: {count}");
-    }
+    count += iter_offset(input, len - 3, len)
+        .map(|pos| up_left(input, pos) + up(input, pos) + left(input, pos))
+        .sum::<u32>();
 
     count
 }
