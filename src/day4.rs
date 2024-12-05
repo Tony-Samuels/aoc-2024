@@ -164,19 +164,19 @@ unsafe fn left(input: &[u8], x_pos: usize) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[inline]
 unsafe fn line<const DIFF: usize>(input: &[u8], x_pos: usize) -> u32 {
-    (input[x_pos] == X
-        && input[x_pos + DIFF] == M
-        && input[x_pos + 2 * DIFF] == A
-        && input[x_pos + 3 * DIFF] == S) as u32
+    (*input.get_unchecked(x_pos) == X
+        && *input.get_unchecked(x_pos + DIFF) == M
+        && *input.get_unchecked(x_pos + 2 * DIFF) == A
+        && *input.get_unchecked(x_pos + 3 * DIFF) == S) as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[inline]
 unsafe fn line_neg<const DIFF: usize>(input: &[u8], x_pos: usize) -> u32 {
-    (input[x_pos] == X
-        && input[x_pos - DIFF] == M
-        && input[x_pos - 2 * DIFF] == A
-        && input[x_pos - 3 * DIFF] == S) as u32
+    (*input.get_unchecked(x_pos) == X
+        && *input.get_unchecked(x_pos - DIFF) == M
+        && *input.get_unchecked(x_pos - 2 * DIFF) == A
+        && *input.get_unchecked(x_pos - 3 * DIFF) == S) as u32
 }
 
 #[aoc(day4, part2)]
@@ -193,10 +193,14 @@ unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
     let mut count = 0;
 
     for a_pos in iter_offset::<A>(input, LINE_LEN + 1, len - LINE_LEN - 1) {
-        let first_valid = (input[a_pos - (LINE_LEN + 1)] ^ input[a_pos + LINE_LEN + 1]) == 30;
+        let first_valid = (input.get_unchecked(a_pos - (LINE_LEN + 1))
+            ^ input.get_unchecked(a_pos + LINE_LEN + 1))
+            == 30;
 
-        let both_valid =
-            first_valid && (input[a_pos - (LINE_LEN - 1)] ^ input[a_pos + LINE_LEN - 1]) == 30;
+        let both_valid = first_valid
+            && (input.get_unchecked(a_pos - (LINE_LEN - 1))
+                ^ input.get_unchecked(a_pos + LINE_LEN - 1))
+                == 30;
 
         count += both_valid as u32;
     }
