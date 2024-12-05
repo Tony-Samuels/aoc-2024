@@ -2,7 +2,7 @@ use std::{cmp::min, mem::transmute};
 
 use aoc_runner_derive::aoc;
 
-use crate::debug;
+use crate::{assume, debug};
 
 #[aoc(day4, part1)]
 pub fn part1(input: &str) -> u32 {
@@ -33,6 +33,10 @@ where
     [(); { LINE_LEN + 1 }]:,
     [(); { LINE_LEN - 1 }]:,
 {
+    // Assume trailing new line
+    let len = const { LINE_LEN * (LINE_LEN - 1) - 1 };
+    assume!(input[len] == b'\n', "Expected trailing new line");
+
     let iter_offset = iter_offset::<X>;
 
     let down = line::<LINE_LEN>;
@@ -84,7 +88,7 @@ where
         debug!("Count: {count}");
     }
 
-    let main_end = input.len() - (LINE_LEN * 3 + 3);
+    let main_end = len - (LINE_LEN * 3 + 3);
     for x_pos in iter_offset(input, LINE_LEN * 3 + 3, main_end) {
         count += up_left(input, x_pos);
         debug!("Count: {count}");
@@ -119,7 +123,7 @@ where
     }
 
     // Bottom few lines can't have down
-    for x_pos in iter_offset(input, input.len() - LINE_LEN * 3, input.len() - 3) {
+    for x_pos in iter_offset(input, len - LINE_LEN * 3, len - 3) {
         count += up_left(input, x_pos);
         debug!("Count: {count}");
         count += up(input, x_pos);
@@ -133,7 +137,7 @@ where
     }
 
     // Last few can't have right, down
-    for pos in iter_offset(input, input.len() - 3, input.len()) {
+    for pos in iter_offset(input, len - 3, len) {
         count += up_left(input, pos);
         debug!("Count: {count}");
         count += up(input, pos);
@@ -182,9 +186,13 @@ pub fn part2(input: &str) -> u32 {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part2_inner<const LINE_LEN: usize>(input: &[u8]) -> u32 {
+    // Assume trailing new line
+    let len = const { LINE_LEN * (LINE_LEN - 1) - 1 };
+    assume!(input[len] == b'\n', "Expected trailing new line");
+
     let mut count = 0;
 
-    for a_pos in iter_offset::<A>(input, LINE_LEN + 1, input.len() - LINE_LEN - 1) {
+    for a_pos in iter_offset::<A>(input, LINE_LEN + 1, len - LINE_LEN - 1) {
         let first_valid = (input[a_pos - (LINE_LEN + 1)] ^ input[a_pos + LINE_LEN + 1]) == 30;
 
         let both_valid =
@@ -209,7 +217,8 @@ XXAMMXXAMA
 SMSMSASXSS
 SAXAMASAAA
 MAMMMXMMMM
-MXMXAXMASX";
+MXMXAXMASX
+";
 
     #[test]
     fn p1_example() {
@@ -227,59 +236,59 @@ MXMXAXMASX";
         for input in [
             // Right
             format!(
-                "XMAS....\n........\n........\n........\n........\n........\n........\n........"
+                "XMAS....\n........\n........\n........\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n........\n........\n........\n....XMAS"
+                "........\n........\n........\n........\n........\n........\n........\n....XMAS\n"
             ),
             // Left
             format!(
-                "SAMX....\n........\n........\n........\n........\n........\n........\n........"
+                "SAMX....\n........\n........\n........\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n........\n........\n........\n....SAMX"
+                "........\n........\n........\n........\n........\n........\n........\n....SAMX\n"
             ),
             // Down
             format!(
-                "X.......\nM.......\nA.......\nS.......\n........\n........\n........\n........"
+                "X.......\nM.......\nA.......\nS.......\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n.......X\n.......M\n.......A\n.......S"
+                "........\n........\n........\n........\n.......X\n.......M\n.......A\n.......S\n"
             ),
             // Up
             format!(
-                "S.......\nA.......\nM.......\nX.......\n........\n........\n........\n........"
+                "S.......\nA.......\nM.......\nX.......\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n.......S\n.......A\n.......M\n.......X"
+                "........\n........\n........\n........\n.......S\n.......A\n.......M\n.......X\n"
             ),
             // Down right
             format!(
-                "X.......\n.M......\n..A.....\n...S....\n........\n........\n........\n........"
+                "X.......\n.M......\n..A.....\n...S....\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n....X...\n.....M..\n......A.\n.......S"
+                "........\n........\n........\n........\n....X...\n.....M..\n......A.\n.......S\n"
             ),
             // Down left
             format!(
-                "...X....\n..M.....\n.A......\nS.......\n........\n........\n........\n........"
+                "...X....\n..M.....\n.A......\nS.......\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n.......X\n......M.\n.....A..\n....S..."
+                "........\n........\n........\n........\n.......X\n......M.\n.....A..\n....S...\n"
             ),
             // Up right
             format!(
-                "...S....\n..A.....\n.M......\nX.......\n........\n........\n........\n........"
+                "...S....\n..A.....\n.M......\nX.......\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n.......S\n......A.\n.....M..\n....X..."
+                "........\n........\n........\n........\n.......S\n......A.\n.....M..\n....X...\n"
             ),
             // Up left
             format!(
-                "S.......\n.A......\n..M.....\n...X....\n........\n........\n........\n........"
+                "S.......\n.A......\n..M.....\n...X....\n........\n........\n........\n........\n"
             ),
             format!(
-                "........\n........\n........\n........\n....S...\n.....A..\n......M.\n.......X"
+                "........\n........\n........\n........\n....S...\n.....A..\n......M.\n.......X\n"
             ),
         ] {
             debug!("New input");
@@ -311,7 +320,8 @@ MXMXAXMASX";
     fn p2_reduced_range() {
         let input = "M.S
 .A.
-M.S"
+M.S
+"
         .as_bytes();
         assert_eq!(unsafe { part2_inner::<4>(input) }, 1);
     }

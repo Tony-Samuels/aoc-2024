@@ -40,6 +40,8 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! assume {
     ($e:expr) => {{
+        use $crate::Assume as _;
+
         let val = $e;
         #[cfg(any(test, feature = "debug"))]
         if !val.as_bool() {
@@ -49,6 +51,8 @@ macro_rules! assume {
         val.assume()
     }};
     ($e:expr, $($arg:tt)*) => {{
+        use $crate::Assume as _;
+
         let val = $e;
         #[cfg(any(test, feature = "debug"))]
         if !val.as_bool() {
