@@ -4,6 +4,7 @@ use crate::{debug, Assume, BitIter};
 
 const ZERO: u8 = b'0';
 const ZERO_ZERO: u16 = ZERO as u16 * 0x0101;
+const ZERO_64: u64 = ZERO as u64 * 0x0101010101010101;
 
 static mut RULES: [u128; 100] = [0; 100];
 
@@ -19,16 +20,12 @@ const RULE_LINES: usize = 1_176;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn parse_rules(input: &[u8]) {
-    for line in 0..RULE_LINES {
-        let n1 = input.as_ptr().add(line * 6).cast::<u16>().read_unaligned();
-        let n1 = p(n1);
-
-        let n2 = input
-            .as_ptr()
-            .add(line * 6 + 3)
-            .cast::<u16>()
-            .read_unaligned();
-        let n2 = p(n2);
+    const { assert!(RULE_LINES % 2 == 0) }
+    for line in (0..RULE_LINES).step_by(1) {
+        let [n1_1, n1_2, _, n2_1, n2_2, ..] =
+            (input.as_ptr().add(line * 6).cast::<u64>().read_unaligned() - ZERO_64).to_ne_bytes();
+        let n1 = n1_1 * 10 + n1_2;
+        let n2 = n2_1 * 10 + n2_2;
 
         *RULES.get_unchecked_mut(n1 as usize) |= 1 << n2;
     }
