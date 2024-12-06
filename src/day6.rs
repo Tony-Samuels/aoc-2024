@@ -299,23 +299,14 @@ unsafe fn loops<const DIM: usize>(
     mut pos: usize,
     start_dir: u8,
     obstruction: usize,
-) -> bool
-where
-    [(); DIM * (DIM + 1)]:,
-{
+) -> bool {
     let len = DIM * (DIM + 1);
-    let mut visited = [0u8; DIM * (DIM + 1)];
     assume!(pos != obstruction);
+    let mut step_count = 4 * DIM * DIM;
 
     if start_dir == RIGHT_VISIT {
         // Right
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & RIGHT_VISIT != 0 {
-                return true;
-            }
-            *visit |= RIGHT_VISIT;
-
             let new_pos = pos + 1;
             if new_pos > len {
                 return false;
@@ -332,19 +323,14 @@ where
                 break;
             }
 
-            pos = new_pos
+            pos = new_pos;
+            step_count -= 1;
         }
     }
 
     if start_dir & (RIGHT_VISIT | DOWN_VISIT) != 0 {
         // Down
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & DOWN_VISIT != 0 {
-                return true;
-            }
-            *visit |= DOWN_VISIT;
-
             let new_pos = pos + DIM + 1;
             if new_pos > len {
                 return false;
@@ -355,18 +341,13 @@ where
             }
 
             pos = new_pos;
+            step_count -= 1;
         }
     }
 
     if start_dir != UP_VISIT {
         // Left
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & LEFT_VISIT != 0 {
-                return true;
-            }
-            *visit |= LEFT_VISIT;
-
             if pos == 0 {
                 return false;
             }
@@ -383,19 +364,14 @@ where
                 break;
             }
 
-            pos = new_pos
+            pos = new_pos;
+            step_count -= 1;
         }
     }
 
     loop {
         // Up
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & UP_VISIT != 0 {
-                return true;
-            }
-            *visit |= UP_VISIT;
-
             if pos < DIM + 1 {
                 return false;
             }
@@ -406,16 +382,14 @@ where
             }
 
             pos = new_pos;
+            step_count -= 1;
+            if step_count == 0 {
+                return true;
+            }
         }
 
         // Right
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & RIGHT_VISIT != 0 {
-                return true;
-            }
-            *visit |= RIGHT_VISIT;
-
             let new_pos = pos + 1;
             if new_pos > len {
                 return false;
@@ -432,17 +406,15 @@ where
                 break;
             }
 
-            pos = new_pos
+            pos = new_pos;
+            step_count -= 1;
+            if step_count == 0 {
+                return true;
+            }
         }
 
         // Down
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & DOWN_VISIT != 0 {
-                return true;
-            }
-            *visit |= DOWN_VISIT;
-
             let new_pos = pos + DIM + 1;
             if new_pos > len {
                 return false;
@@ -453,16 +425,14 @@ where
             }
 
             pos = new_pos;
+            step_count -= 1;
+            if step_count == 0 {
+                return true;
+            }
         }
 
         // Left
         loop {
-            let visit = visited.get_unchecked_mut(pos);
-            if *visit & LEFT_VISIT != 0 {
-                return true;
-            }
-            *visit |= LEFT_VISIT;
-
             if pos == 0 {
                 return false;
             }
@@ -479,7 +449,11 @@ where
                 break;
             }
 
-            pos = new_pos
+            pos = new_pos;
+            step_count -= 1;
+            if step_count == 0 {
+                return true;
+            }
         }
     }
 }
