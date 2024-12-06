@@ -1,6 +1,7 @@
 #![allow(incomplete_features, static_mut_refs, unused)]
 #![feature(
     generic_const_exprs,
+    iter_array_chunks,
     maybe_uninit_array_assume_init,
     maybe_uninit_uninit_array,
     never_type,
