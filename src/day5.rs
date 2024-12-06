@@ -1,6 +1,6 @@
 use aoc_runner_derive::aoc;
 
-use crate::{debug, Assume, BitIter};
+use crate::{debug, BitIter};
 
 const ZERO: u8 = b'0';
 const ZERO_ZERO: u16 = ZERO as u16 * 0x0101;
@@ -163,8 +163,6 @@ unsafe fn inner_p2(input: &str) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-
     use super::*;
 
     #[test]

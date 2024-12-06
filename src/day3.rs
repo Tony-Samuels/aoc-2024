@@ -1,11 +1,5 @@
-use std::cmp::min;
-
 use aoc_runner_derive::aoc;
-use memchr::{
-    arch::all::packedpair::HeuristicFrequencyRank,
-    memmem::{find_iter, FindIter, FinderBuilder},
-    Memchr,
-};
+use memchr::{arch::all::packedpair::HeuristicFrequencyRank, memmem::FinderBuilder, Memchr};
 
 use crate::debug;
 
@@ -89,12 +83,7 @@ unsafe fn inner_part1(input: &[u8]) -> u32 {
                 debug!("{num1} * {num2}");
                 sum += num1 * num2;
             }
-            arr => {
-                debug!(
-                    "Unexpected values: {:?}",
-                    std::str::from_utf8(&arr[..(min(arr.len(), 10))]).unwrap()
-                )
-            }
+            _ => (),
         }
     }
 

@@ -1,6 +1,8 @@
-#![allow(incomplete_features, static_mut_refs, unused)]
+#![allow(incomplete_features, static_mut_refs)]
 #![feature(
     generic_const_exprs,
+    generic_arg_infer,
+    inline_const_pat,
     maybe_uninit_array_assume_init,
     maybe_uninit_uninit_array,
     never_type,
@@ -16,10 +18,9 @@ pub mod day2;
 pub mod day3;
 pub mod day4;
 pub mod day5;
+pub mod day6;
 
 aoc_lib! { year = 2024 }
-
-const DEBUG_ENABLED: bool = cfg!(test) || cfg!(feature = "debug");
 
 struct BitIter(u128);
 
@@ -86,6 +87,7 @@ macro_rules! assume {
     }};
 }
 
+#[allow(unused)]
 trait Assume: Sized {
     type T;
 

@@ -1,8 +1,8 @@
-use std::{cmp::min, mem::transmute};
+use std::mem::transmute;
 
 use aoc_runner_derive::aoc;
 
-use crate::{assume, debug};
+use crate::assume;
 
 #[aoc(day4, part1)]
 pub fn part1(input: &str) -> u32 {
@@ -30,8 +30,8 @@ unsafe fn iter_offset<const MATCH: u8>(
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn part1_inner<const LINE_LEN: usize>(input: &[u8]) -> u32
 where
-    [(); { LINE_LEN + 1 }]:,
-    [(); { LINE_LEN - 1 }]:,
+    [(); LINE_LEN + 1]:,
+    [(); LINE_LEN - 1]:,
 {
     // Assume trailing new line
     let len = const { LINE_LEN * (LINE_LEN - 1) - 1 };
@@ -259,7 +259,6 @@ MXMXAXMASX
                 "........\n........\n........\n........\n....S...\n.....A..\n......M.\n.......X\n"
             ),
         ] {
-            debug!("New input");
             assert!(
                 input.lines().map(str::len).all(|n| n == 8),
                 "Incorrect line length"
@@ -276,12 +275,12 @@ MXMXAXMASX
 
     #[test]
     fn p1_real() {
-        assert_eq!(unsafe { part1(REAL_INPUT) }, 2_593);
+        assert_eq!(part1(REAL_INPUT), 2_593);
     }
 
     #[test]
     fn p2_real() {
-        assert_eq!(unsafe { part2(REAL_INPUT) }, 1_950);
+        assert_eq!(part2(REAL_INPUT), 1_950);
     }
 
     #[test]

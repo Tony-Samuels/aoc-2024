@@ -85,10 +85,7 @@ impl Iterator for LineNumIter<'_> {
                     Some(((n1 - b'0') * 10 + n2 - b'0') as i8)
                 }
                 [] => None,
-                arr => {
-                    debug!("Unexpected arr: {arr:?}");
-                    Unreachable.assume()
-                }
+                _ => Unreachable.assume(),
             }
         }
 
@@ -107,7 +104,6 @@ pub fn part1(input: &str) -> i32 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> i32 {
         let mut count = 1_000;
-        let mut added = false;
 
         let iter = &mut LineNumIter::new(input);
         while let Some(first) = {

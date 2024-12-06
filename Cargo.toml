@@ -17,6 +17,10 @@ debug = []
 name = "day5"
 harness = false
 
+[[bench]]
+name = "day6"
+harness = false
+
 [[bin]]
 name = "rank3"
 test = false
