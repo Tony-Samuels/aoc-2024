@@ -51,7 +51,9 @@ unsafe fn inner_p1(input: &str) -> i32 {
         let mut seen = 0u128;
         let line_start = offset;
 
-        let valid = loop {
+        let mut valid = true;
+
+        loop {
             debug!(
                 "Curr: {}",
                 std::str::from_utf8(&input[offset..offset + 3]).unwrap()
@@ -67,19 +69,13 @@ unsafe fn inner_p1(input: &str) -> i32 {
 
             if RULES.get_unchecked(num as usize) & seen != 0 {
                 debug!("Rule breakage");
-                offset += input
-                    .get_unchecked(offset..)
-                    .iter()
-                    .position(|&c| c == b'\n')
-                    .assume()
-                    + 1;
-                break false;
+                valid = false;
             }
 
             if term == b'\n' {
-                break true;
+                break;
             }
-        };
+        }
 
         if valid {
             let line_end = offset;
