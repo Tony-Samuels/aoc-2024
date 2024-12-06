@@ -65,19 +65,23 @@ unsafe fn inner_p1(input: &str) -> i32 {
             seen |= 1 << num;
             offset += 3;
 
-            if RULES.get_unchecked(num as usize) & seen != 0 {
-                debug!("Rule breakage");
-                offset += input
-                    .get_unchecked(offset..)
-                    .iter()
-                    .position(|&c| c == b'\n')
-                    .assume()
-                    + 1;
-                break false;
+            let valid = RULES.get_unchecked(num as usize) & seen == 0;
+            if term == b'\n' {
+                break valid;
             }
 
-            if term == b'\n' {
-                break true;
+            if !valid {
+                debug!("Rule breakage fast-forward");
+                while input.as_ptr().add(offset + 2).read() != b'\n' {
+                    debug!(
+                        "Looking for new line: {}",
+                        std::str::from_utf8(&input[offset..offset + 3]).unwrap()
+                    );
+                    offset += 3;
+                }
+                offset += 3;
+
+                break false;
             }
         };
 
