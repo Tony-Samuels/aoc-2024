@@ -4,8 +4,8 @@ use aoc_runner_derive::aoc;
 
 use crate::{assume, debug, Assume, Unreachable};
 
-const ZERO_ZERO: u16 = unsafe { transmute::<[u8; 2], u16>(*b"00") };
 const ZERO: u8 = b'0';
+const ZERO_ZERO: u16 = ZERO as u16 * 0x0101;
 
 static mut RULES: [u128; 100] = [0; 100];
 
@@ -32,7 +32,7 @@ unsafe fn parse_rules(input: &[u8]) {
             .read_unaligned();
         let n2 = p(n2);
 
-        RULES[n1 as usize] |= 1 << n2;
+        *RULES.get_unchecked_mut(n1 as usize) |= 1 << n2;
     }
 }
 
@@ -67,9 +67,14 @@ unsafe fn inner_p1(input: &str) -> i32 {
             seen |= 1 << num;
             offset += 3;
 
-            if RULES[num as usize] & seen != 0 {
+            if RULES.get_unchecked(num as usize) & seen != 0 {
                 debug!("Rule breakage");
-                offset += input[offset..].iter().position(|&c| c == b'\n').assume() + 1;
+                offset += input
+                    .get_unchecked(offset..)
+                    .iter()
+                    .position(|&c| c == b'\n')
+                    .assume()
+                    + 1;
                 break false;
             }
 
@@ -130,7 +135,7 @@ unsafe fn inner_p2(input: &str) -> i32 {
             seen |= 1 << num;
             offset += 3;
 
-            if RULES[num as usize] & seen != 0 {
+            if RULES.get_unchecked(num as usize) & seen != 0 {
                 unsorted = true;
             }
 
