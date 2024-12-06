@@ -21,6 +21,27 @@ aoc_lib! { year = 2024 }
 
 const DEBUG_ENABLED: bool = cfg!(test) || cfg!(feature = "debug");
 
+struct BitIter(u128);
+
+impl Iterator for BitIter {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+        unsafe fn inner(iter: &mut BitIter) -> Option<usize> {
+            if iter.0 == 0 {
+                None
+            } else {
+                let position = iter.0.trailing_zeros() as usize;
+                iter.0 &= iter.0.wrapping_sub(1);
+                Some(position)
+            }
+        }
+
+        unsafe { inner(self) }
+    }
+}
+
 #[macro_export]
 macro_rules! debug {
     () => {

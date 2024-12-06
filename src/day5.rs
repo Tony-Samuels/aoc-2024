@@ -1,8 +1,6 @@
-use std::{cmp::Ordering, mem::transmute};
-
 use aoc_runner_derive::aoc;
 
-use crate::{assume, debug, Assume, Unreachable};
+use crate::{debug, Assume, BitIter};
 
 const ZERO: u8 = b'0';
 const ZERO_ZERO: u16 = ZERO as u16 * 0x0101;
@@ -110,7 +108,6 @@ unsafe fn inner_p2(input: &str) -> i32 {
     parse_rules(input);
 
     let mut offset = RULE_LINES * 6 + 1;
-    let mut nums = [0; 23];
     let mut result = 0;
 
     while input.len() > offset + 3 {
@@ -130,8 +127,6 @@ unsafe fn inner_p2(input: &str) -> i32 {
                 .cast::<(u16, u8)>()
                 .read_unaligned();
             let num = p(n);
-            nums[(offset - line_start) / 3] = num;
-
             seen |= 1 << num;
             offset += 3;
 
@@ -147,20 +142,15 @@ unsafe fn inner_p2(input: &str) -> i32 {
         if unsorted {
             let line_end = offset;
             let num_count = (line_end - line_start) / 3;
-            let nums = &mut nums[..num_count];
-            debug!("Found numbers: {nums:?}");
+            let midpoint = num_count / 2;
 
-            nums.select_nth_unstable_by(num_count / 2, |&n1, &n2| {
-                if RULES[n1 as usize] & 1 << n2 != 0 {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
+            for n in BitIter(seen) {
+                if (RULES.get_unchecked(n) & seen).count_ones() == midpoint as u32 {
+                    debug!("Midpoint: {midpoint}");
+                    result += n as i32;
+                    break;
                 }
-            });
-
-            let midpoint = nums[num_count / 2];
-            debug!("Midpoint: {midpoint}");
-            result += midpoint as i32;
+            }
         }
     }
 
