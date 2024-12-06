@@ -522,7 +522,7 @@ mod tests {
 
     #[test]
     fn real_p2() {
-        assert_eq!(part2(REAL), 6);
+        assert_eq!(part2(REAL), 1_688);
     }
 
     #[test]
