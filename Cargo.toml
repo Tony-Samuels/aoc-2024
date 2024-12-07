@@ -14,7 +14,7 @@ memchr = "2"
 debug = []
 
 [[bench]]
-name = "day5"
+name = "day7"
 harness = false
 
 [[bench]]
