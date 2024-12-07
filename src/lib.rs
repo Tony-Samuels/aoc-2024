@@ -191,3 +191,49 @@ impl Assume for bool {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+struct ArrayVec<const N: usize, T> {
+    inner: [T; N],
+    len: usize,
+}
+
+impl<const N: usize, T> ArrayVec<N, T>
+where
+    T: Copy + Default,
+    [T; N]:,
+{
+    fn new() -> Self {
+        Self {
+            inner: [T::default(); N],
+            len: 0,
+        }
+    }
+
+    unsafe fn push_unchecked(&mut self, item: T) {
+        *self.inner.get_unchecked_mut(self.len) = item;
+        self.len += 1;
+    }
+
+    unsafe fn get_unchecked(&self, index: usize) -> T {
+        *self.inner.get_unchecked(index)
+    }
+
+    fn clear(&mut self) {
+        self.len = 0;
+    }
+
+    unsafe fn pop_unchecked(&mut self) -> T {
+        self.len -= 1;
+        self.get_unchecked(self.len)
+    }
+}
+
+impl<'a, const N: usize, T> IntoIterator for &'a ArrayVec<N, T> {
+    type IntoIter = std::slice::Iter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner[..self.len].iter()
+    }
+}
