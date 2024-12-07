@@ -210,19 +210,23 @@ where
         }
     }
 
+    #[inline]
     unsafe fn push_unchecked(&mut self, item: T) {
         *self.inner.get_unchecked_mut(self.len) = item;
         self.len += 1;
     }
 
+    #[inline]
     unsafe fn get_unchecked(&self, index: usize) -> T {
         *self.inner.get_unchecked(index)
     }
 
+    #[inline]
     fn clear(&mut self) {
         self.len = 0;
     }
 
+    #[inline]
     unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
         self.get_unchecked(self.len)

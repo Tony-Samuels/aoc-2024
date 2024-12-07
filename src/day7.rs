@@ -1,45 +1,42 @@
 use aoc_runner_derive::aoc;
+use atoi_simd::parse_any_pos;
 
-use crate::{assume, debug, ArrayVec, Assume, Unreachable};
+use crate::{assume, debug, ArrayVec, Assume};
 
 const EOL: u8 = b'\n';
-
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn get_num(input: impl Iterator<Item = u8>) -> (u64, u8) {
-    let mut num = 0;
-    for c in input {
-        if c.wrapping_sub(b'0') < 10 {
-            num *= 10;
-            num += (c - b'0') as u64;
-        } else {
-            debug!("Found num {num}");
-            return (num, c);
-        }
-    }
-
-    Unreachable.assume()
-}
 
 #[aoc(day7, part1)]
 pub fn part1(input: &str) -> u64 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> u64 {
-        let mut input = input.bytes();
+        let input = input.as_bytes();
         let mut count = 0;
         let mut vec = ArrayVec::<20, u64>::new();
+        let mut pos = 0;
 
-        while input.len() > 3 {
+        while input.len() > pos + 3 {
             vec.clear();
 
-            let (target, term) = get_num(&mut input);
+            let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             assume!(
-                term == b':',
-                "Unexpected start of line terminator after {target}: {term} ({})",
-                term as char
+                input[pos + bytes] == b':' && input[pos + bytes + 1] == b' ',
+                "Unexpected start of line terminators after {target}: {}{} ({}{})",
+                input[pos + bytes],
+                input[pos + bytes + 1],
+                input[pos + bytes] as char,
+                input[pos + bytes + 1] as char,
             );
+            pos += bytes + 2;
             loop {
-                let (next, term) = get_num(&mut input);
+                let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
                 vec.push_unchecked(next);
+                let term = *input.get_unchecked(pos + bytes);
+                pos += bytes + 1;
+                assume!(
+                    term == b' ' || term == b'\n',
+                    "Unexpected terminator {term} ({})",
+                    term as char
+                );
                 if term == EOL {
                     break;
                 }
@@ -50,8 +47,6 @@ pub fn part1(input: &str) -> u64 {
             debug!("Math checks out for {target}: {math_checks_out}");
             count += target * math_checks_out as u64;
         }
-
-        debug!("Remaining input: {}", input.len());
 
         count
     }
@@ -76,22 +71,34 @@ unsafe fn recurse_p1<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
 pub fn part2(input: &str) -> u64 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> u64 {
-        let mut input = input.bytes();
+        let input = input.as_bytes();
         let mut count = 0;
         let mut vec = ArrayVec::<20, u64>::new();
+        let mut pos = 0;
 
-        while input.len() > 3 {
+        while input.len() > pos + 3 {
             vec.clear();
 
-            let (target, term) = get_num(&mut input);
+            let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             assume!(
-                term == b':',
-                "Unexpected start of line terminator after {target}: {term} ({})",
-                term as char
+                input[pos + bytes] == b':' && input[pos + bytes + 1] == b' ',
+                "Unexpected start of line terminators after {target}: {}{} ({}{})",
+                input[pos + bytes],
+                input[pos + bytes + 1],
+                input[pos + bytes] as char,
+                input[pos + bytes + 1] as char,
             );
+            pos += bytes + 2;
             loop {
-                let (next, term) = get_num(&mut input);
+                let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
                 vec.push_unchecked(next);
+                let term = *input.get_unchecked(pos + bytes);
+                pos += bytes + 1;
+                assume!(
+                    term == b' ' || term == b'\n',
+                    "Unexpected terminator {term} ({})",
+                    term as char
+                );
                 if term == EOL {
                     break;
                 }
@@ -163,6 +170,6 @@ mod tests {
     #[test]
     fn real_p2() {
         let input = include_str!("../input/2024/day7.txt");
-        assert_eq!(part2(input), 500335179214836);
+        assert_eq!(part2(input), 500_335_179_214_836);
     }
 }
