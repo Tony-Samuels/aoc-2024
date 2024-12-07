@@ -1,76 +1,11 @@
 use aoc_runner_derive::aoc;
 
-use crate::{assume, debug, Assume, Unreachable};
+use crate::{assume, debug, ArrayVec, Assume, Unreachable};
 
 const EOL: u8 = b'\n';
 
-#[derive(Clone, Copy)]
-struct LineCharIter<'a> {
-    inner: &'a [u8],
-    line_just_ended: bool,
-}
-
-#[cfg(any(test, feature = "debug"))]
-impl std::fmt::Debug for LineCharIter<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LineNumIter")
-            .field(
-                "inner",
-                &std::str::from_utf8(self.inner)
-                    .unwrap()
-                    .lines()
-                    .next()
-                    .unwrap_or_default(),
-            )
-            .field("line_just_ended", &self.line_just_ended)
-            .finish()
-    }
-}
-
-impl<'a> LineCharIter<'a> {
-    fn new(s: &'a str) -> Self {
-        Self {
-            inner: s.as_bytes(),
-            line_just_ended: true,
-        }
-    }
-
-    fn jump_to_next_line(&mut self) {
-        if !self.line_just_ended {
-            debug!("Jumping to end of line: {self:?}");
-            self.take_while(|&c| c != EOL).for_each(drop);
-            debug!("Jumped to end of line: {self:?}");
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.inner.len()
-    }
-}
-
-impl Iterator for LineCharIter<'_> {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-        unsafe fn inner(iter: &mut LineCharIter<'_>) -> Option<u8> {
-            if iter.inner.len() == 0 {
-                return None;
-            }
-
-            let c = *iter.inner.get_unchecked(0);
-            iter.inner = iter.inner.get_unchecked(1..);
-            iter.line_just_ended = c == EOL;
-            Some(c)
-        }
-
-        unsafe { inner(self) }
-    }
-}
-
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn get_num(input: &mut LineCharIter<'_>) -> (u64, u8) {
-    debug!("Fetching num from {input:?}");
+unsafe fn get_num(input: impl Iterator<Item = u8>) -> (u64, u8) {
     let mut num = 0;
     for c in input {
         if c.wrapping_sub(b'0') < 10 {
@@ -89,32 +24,29 @@ unsafe fn get_num(input: &mut LineCharIter<'_>) -> (u64, u8) {
 pub fn part1(input: &str) -> u64 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> u64 {
-        let mut input = LineCharIter::new(input);
+        let mut input = input.bytes();
         let mut count = 0;
+        let mut vec = ArrayVec::<20, u64>::new();
 
         while input.len() > 3 {
-            input.jump_to_next_line();
+            vec.clear();
+
             let (target, term) = get_num(&mut input);
             assume!(
                 term == b':',
                 "Unexpected start of line terminator after {target}: {term} ({})",
                 term as char
             );
-            let space = input.next().assume();
-            assume!(
-                space == b' ',
-                "Unexpected char after start: {space} ({})",
-                space as char
-            );
+            loop {
+                let (next, term) = get_num(&mut input);
+                vec.push_unchecked(next);
+                if term == EOL {
+                    break;
+                }
+            }
 
-            let (first_num, space) = get_num(&mut input);
-            assume!(
-                space == b' ',
-                "Unexpected char after first num: {space} ({})",
-                space as char
-            );
-
-            let math_checks_out = recurse_p1(&mut input, target, first_num);
+            debug!("Running with vec: {vec:?}");
+            let math_checks_out = recurse_p1(target, vec);
             debug!("Math checks out for {target}: {math_checks_out}");
             count += target * math_checks_out as u64;
         }
@@ -127,17 +59,16 @@ pub fn part1(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p1(input: &mut LineCharIter<'_>, target: u64, acc: u64) -> bool {
-    let (num, term) = get_num(&mut *input);
-    let mul = num * acc;
-    let add = num + acc;
-    debug!("Checking {num} for {target} with {acc}: * {mul}, + {add}");
+unsafe fn recurse_p1<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) -> bool {
+    if nums.len == 1 {
+        let num = nums.pop_unchecked();
 
-    if term == EOL {
-        (target == mul) || (target == add)
+        num == target
     } else {
-        (mul <= target && recurse_p1(&mut input.clone(), target, mul))
-            || (add <= target && recurse_p1(input, target, add))
+        let num = nums.pop_unchecked();
+
+        (target % num == 0 && recurse_p1(target / num, nums))
+            || (target >= num && recurse_p1(target - num, nums))
     }
 }
 
@@ -145,34 +76,29 @@ unsafe fn recurse_p1(input: &mut LineCharIter<'_>, target: u64, acc: u64) -> boo
 pub fn part2(input: &str) -> u64 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> u64 {
-        let mut input = LineCharIter::new(input);
+        let mut input = input.bytes();
         let mut count = 0;
+        let mut vec = ArrayVec::<20, u64>::new();
 
-        while {
-            input.jump_to_next_line();
-            input.len() > 3
-        } {
+        while input.len() > 3 {
+            vec.clear();
+
             let (target, term) = get_num(&mut input);
             assume!(
                 term == b':',
                 "Unexpected start of line terminator after {target}: {term} ({})",
                 term as char
             );
-            let space = input.next().assume();
-            assume!(
-                space == b' ',
-                "Unexpected char after start: {space} ({})",
-                space as char
-            );
+            loop {
+                let (next, term) = get_num(&mut input);
+                vec.push_unchecked(next);
+                if term == EOL {
+                    break;
+                }
+            }
 
-            let (first_num, space) = get_num(&mut input);
-            assume!(
-                space == b' ',
-                "Unexpected char after first num: {space} ({})",
-                space as char
-            );
-
-            let math_checks_out = recurse_p2(&mut input, target, first_num);
+            debug!("Running with vec: {vec:?}");
+            let math_checks_out = recurse_p2(target, vec);
             debug!("Math checks out for {target}: {math_checks_out}");
             count += target * math_checks_out as u64;
         }
@@ -185,21 +111,18 @@ pub fn part2(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p2(input: &mut LineCharIter<'_>, target: u64, acc: u64) -> bool {
-    let (num, term) = get_num(&mut *input);
-    assume!(num != 0);
-    assume!(term == EOL || term == b' ', "Unexpected terminator");
-    let mul = num * acc;
-    let add = num + acc;
-    let cat = acc * 10u64.pow(num.ilog10() + 1) + num;
-    debug!("Checking {num} for {target} with {acc}: * {mul}, + {add}, || {cat}");
+unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) -> bool {
+    if nums.len == 1 {
+        let num = nums.pop_unchecked();
 
-    if term == EOL {
-        (target == mul) || (target == add) || (target == cat)
+        num == target
     } else {
-        (mul <= target && recurse_p2(&mut input.clone(), target, mul))
-            || (add <= target && recurse_p2(&mut input.clone(), target, add))
-            || (cat <= target && recurse_p2(input, target, cat))
+        let num = nums.pop_unchecked();
+        let tens = 10u64.pow(num.ilog10() + 1);
+
+        (target % num == 0 && recurse_p2(target / num, nums))
+            || (target >= num && recurse_p2(target - num, nums)
+                || (target % tens == num && recurse_p2(target / tens, nums)))
     }
 }
 
@@ -240,6 +163,6 @@ mod tests {
     #[test]
     fn real_p2() {
         let input = include_str!("../input/2024/day7.txt");
-        assert_eq!(part2(input), 7);
+        assert_eq!(part2(input), 500335179214836);
     }
 }
