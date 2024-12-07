@@ -125,11 +125,13 @@ unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
         num == target
     } else {
         let num = nums.pop_unchecked();
-        let tens = 10u64.pow(num.ilog10() + 1);
 
         (target % num == 0 && recurse_p2(target / num, nums))
             || (target >= num && recurse_p2(target - num, nums)
-                || (target % tens == num && recurse_p2(target / tens, nums)))
+                || ({
+                    let tens = 10u64.pow(num.ilog10() + 1);
+                    target % tens == num && recurse_p2(target / tens, nums)
+                }))
     }
 }
 
