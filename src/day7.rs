@@ -73,7 +73,7 @@ pub fn part2(input: &str) -> u64 {
     unsafe fn inner(input: &str) -> u64 {
         let input = input.as_bytes();
         let mut count = 0;
-        let mut vec = ArrayVec::<20, u64>::new();
+        let mut vec = ArrayVec::<20, _>::new();
         let mut pos = 0;
 
         while input.len() > pos + 3 {
@@ -91,7 +91,9 @@ pub fn part2(input: &str) -> u64 {
             pos += bytes + 2;
             loop {
                 let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
-                vec.push_unchecked(next);
+                let tens = 10u64.pow(bytes as _);
+
+                vec.push_unchecked((next, tens));
                 let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
                 assume!(
@@ -118,14 +120,13 @@ pub fn part2(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) -> bool {
+unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, (u64, u64)>) -> bool {
     if nums.len == 1 {
-        let num = nums.pop_unchecked();
+        let (num, _) = nums.pop_unchecked();
 
         num == target
     } else {
-        let num = nums.pop_unchecked();
-        let tens = 10u64.pow(num.ilog10() + 1);
+        let (num, tens) = nums.pop_unchecked();
 
         (target % num == 0 && recurse_p2(target / num, nums))
             || (target >= num && recurse_p2(target - num, nums)
