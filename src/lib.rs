@@ -198,6 +198,7 @@ struct ArrayVec<const N: usize, T> {
     len: usize,
 }
 
+#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T>
 where
     T: Copy + Default,
@@ -222,6 +223,11 @@ where
     }
 
     #[inline]
+    fn as_slice(&self) -> &[T] {
+        &self.inner[..self.len]
+    }
+
+    #[inline]
     fn clear(&mut self) {
         self.len = 0;
     }
@@ -241,3 +247,14 @@ impl<'a, const N: usize, T> IntoIterator for &'a ArrayVec<N, T> {
         self.inner[..self.len].iter()
     }
 }
+
+impl<const N: usize, T> PartialEq for ArrayVec<N, T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner[..self.len] == other.inner[..self.len]
+    }
+}
+
+impl<const N: usize, T> Eq for ArrayVec<N, T> where T: Eq {}
