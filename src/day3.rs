@@ -1,19 +1,7 @@
 use aoc_runner_derive::aoc;
 use memchr::{arch::all::packedpair::HeuristicFrequencyRank, memmem::FinderBuilder, Memchr};
 
-use crate::debug;
-
-macro_rules! p {
-    ($num:ident) => {
-        ($num - b'0') as u32
-    };
-    ($tens:ident, $units:ident) => {
-        (($tens - b'0') * 10 + $units - b'0') as u32
-    };
-    ($hundreds:ident, $tens:ident, $units:ident) => {
-        (($hundreds - b'0') as u32 * 100 + ($tens - b'0') as u32 * 10 + ($units - b'0') as u32)
-    };
-}
+use crate::{debug, p};
 
 struct Aoc3;
 impl HeuristicFrequencyRank for Aoc3 {
@@ -48,38 +36,38 @@ unsafe fn inner_part1(input: &[u8]) -> u32 {
     for partial_match_pos in iter {
         match &input[partial_match_pos + 1..] {
             [b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                sum += p!(num1) * p!(num2);
+                sum += p!(u32, num1) * p!(u32, num2);
             }
             [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                sum += p!(num1_1, num1_2) * p!(num2)
+                sum += p!(u32, num1_1, num1_2) * p!(u32, num2)
             }
             [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
-                sum += p!(num1_1, num1_2, num1_3) * p!(num2)
+                sum += p!(u32, num1_1, num1_2, num1_3) * p!(u32, num2)
             }
             [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
             {
-                sum += p!(num1) * p!(num2_1, num2_2);
+                sum += p!(u32, num1) * p!(u32, num2_1, num2_2);
             }
             [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
             {
-                sum += p!(num1_1, num1_2) * p!(num2_1, num2_2);
+                sum += p!(u32, num1_1, num1_2) * p!(u32, num2_1, num2_2);
             }
             [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', b')', ..] =>
             {
-                sum += p!(num1_1, num1_2, num1_3) * p!(num2_1, num2_2);
+                sum += p!(u32, num1_1, num1_2, num1_3) * p!(u32, num2_1, num2_2);
             }
             [b'l', b'(', num1 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
             {
-                sum += p!(num1) * p!(num2_1, num2_2, num2_3);
+                sum += p!(u32, num1) * p!(u32, num2_1, num2_2, num2_3);
             }
             [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
             {
-                sum += p!(num1_1, num1_2) * p!(num2_1, num2_2, num2_3);
+                sum += p!(u32, num1_1, num1_2) * p!(u32, num2_1, num2_2, num2_3);
             }
             [b'l', b'(', num1_1 @ b'0'..=b'9', num1_2 @ b'0'..=b'9', num1_3 @ b'0'..=b'9', b',', num2_1 @ b'0'..=b'9', num2_2 @ b'0'..=b'9', num2_3 @ b'0'..=b'9', b')', ..] =>
             {
-                let num1 = p!(num1_1, num1_2, num1_3);
-                let num2 = p!(num2_1, num2_2, num2_3);
+                let num1 = p!(u32, num1_1, num1_2, num1_3);
+                let num2 = p!(u32, num2_1, num2_2, num2_3);
                 debug!("{num1} * {num2}");
                 sum += num1 * num2;
             }

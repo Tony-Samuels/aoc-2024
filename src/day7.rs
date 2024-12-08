@@ -1,4 +1,4 @@
-use std::intrinsics::{unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
+use std::intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
 
 use aoc_runner_derive::aoc;
 use atoi_simd::parse_any_pos;
@@ -6,6 +6,25 @@ use atoi_simd::parse_any_pos;
 use crate::{ArrayVec, Assume};
 
 const EOL: u8 = b'\n';
+const ZERO: u8 = b'0';
+const SPACE: u8 = b' ';
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn parse_3_or_shorter(input: &[u8]) -> (u64, usize) {
+    let mut num = unchecked_sub(*input.get_unchecked(0), ZERO) as u64;
+    let mut i = 1;
+
+    loop {
+        let c = *input.get_unchecked(i);
+        if c == EOL || c == SPACE {
+            break;
+        }
+        num = unchecked_add(unchecked_mul(num, 10), unchecked_sub(c, ZERO) as u64);
+        i += 1;
+    }
+
+    (num, i)
+}
 
 #[aoc(day7, part1)]
 pub fn part1(input: &str) -> u64 {
@@ -22,7 +41,7 @@ pub fn part1(input: &str) -> u64 {
             let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             pos += bytes + 2;
             loop {
-                let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+                let (next, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
                 vec.push_unchecked(next);
                 let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
@@ -66,7 +85,7 @@ pub fn part2(input: &str) -> u64 {
             let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             pos += bytes + 2;
             loop {
-                let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+                let (next, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
                 vec.push_unchecked(next);
                 let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
@@ -93,12 +112,13 @@ unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
         (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums))
             || (target >= num && recurse_p2(unchecked_sub(target, num), nums)
                 || ({
-                    let mut temp = num;
-                    let mut tens = 1;
-                    while temp > 0 {
-                        tens = unchecked_mul(tens, 10);
-                        temp = unchecked_div(temp, 10);
-                    }
+                    let tens = if num >= 100 {
+                        1_000
+                    } else if num >= 10 {
+                        100
+                    } else {
+                        10
+                    };
                     unchecked_rem(target, tens) == num
                         && recurse_p2(unchecked_div(target, tens), nums)
                 }))
@@ -143,5 +163,15 @@ mod tests {
     fn real_p2() {
         let input = include_str!("../input/2024/day7.txt");
         assert_eq!(part2(input), 500_335_179_214_836);
+    }
+
+    #[test]
+    fn parsing() {
+        unsafe {
+            assert_eq!(parse_3_or_shorter(b"1\n00"), (1, 1));
+            assert_eq!(parse_3_or_shorter(b"1 0 "), (1, 1));
+            assert_eq!(parse_3_or_shorter(b"12 0"), (12, 2));
+            assert_eq!(parse_3_or_shorter(b"123\n"), (123, 3));
+        }
     }
 }
