@@ -22,8 +22,7 @@ where
     let input = input.as_bytes();
 
     let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
-    let mut antinodes = [false; DIM * (DIM + 1)];
-    let mut count = 0;
+    let mut antinodes = [0; DIM * (DIM + 1)];
 
     for y in 0..DIM as i8 {
         for x in 0..DIM as i8 {
@@ -33,20 +32,16 @@ where
                 continue;
             }
 
-            debug!("Checking {}, count {count}", c as char);
             let antennae = antennae.get_unchecked_mut((c - ZERO) as usize);
-
             for &antenna in antennae.into_iter() {
                 let diff = index - antenna;
                 if let Some(pos) = (antenna - diff).checked_to() {
                     let antinode = antinodes.get_unchecked_mut(pos);
-                    count += !*antinode as i32;
-                    *antinode = true;
+                    *antinode = 1;
                 }
                 if let Some(pos) = (index + diff).checked_to() {
                     let antinode = antinodes.get_unchecked_mut(pos);
-                    count += !*antinode as i32;
-                    *antinode = true;
+                    *antinode = 1;
                 }
             }
 
@@ -54,7 +49,7 @@ where
         }
     }
 
-    count
+    antinodes.into_iter().sum()
 }
 
 #[aoc(day8, part2)]
@@ -70,8 +65,7 @@ where
     let input = input.as_bytes();
 
     let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
-    let mut antinodes = [false; DIM * (DIM + 1)];
-    let mut count = 0;
+    let mut antinodes = [0; DIM * (DIM + 1)];
 
     for y in 0..DIM as i8 {
         for x in 0..DIM as i8 {
@@ -80,8 +74,6 @@ where
             if c == b'.' {
                 continue;
             }
-
-            debug!("Checking {}, count {count}", c as char);
             let antennae = antennae.get_unchecked_mut((c - ZERO) as usize);
 
             for &antenna in antennae.into_iter() {
@@ -90,8 +82,7 @@ where
                     let mut index = antenna;
                     while let Some(pos) = index.checked_to() {
                         let antinode = antinodes.get_unchecked_mut(pos);
-                        count += !*antinode as i32;
-                        *antinode = true;
+                        *antinode = 1;
                         index -= diff;
                     }
                 }
@@ -99,8 +90,7 @@ where
                     let mut index = index;
                     while let Some(pos) = index.checked_to() {
                         let antinode = antinodes.get_unchecked_mut(pos);
-                        count += !*antinode as i32;
-                        *antinode = true;
+                        *antinode = 1;
                         index += diff;
                     }
                 }
@@ -113,7 +103,7 @@ where
     debug!("Final map:\n{}", {
         let mut s = String::new();
         for (i, &c) in input.iter().enumerate() {
-            s.push(if antinodes[i] {
+            s.push(if antinodes[i] == 1 {
                 if c == b'.' {
                     '+'
                 } else {
@@ -126,7 +116,7 @@ where
         s
     });
 
-    count
+    antinodes.into_iter().sum()
 }
 
 #[cfg(test)]
