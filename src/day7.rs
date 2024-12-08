@@ -78,6 +78,8 @@ pub fn part1(input: &str) -> u64 {
 unsafe fn recurse_p1(target: u64, nums: &[u16; 12], index: usize) -> bool {
     assume!(index < 12);
     let num = *nums.get_unchecked(index) as u64;
+    assume!(num != 0);
+    assume!(num < 1_000);
     if index == 0 {
         num == target
     } else {
@@ -123,6 +125,8 @@ pub fn part2(input: &str) -> u64 {
 unsafe fn recurse_p2(target: u64, nums: &[u16; 12], index: usize) -> bool {
     assume!(index < 12);
     let num = *nums.get_unchecked(index) as u64;
+    assume!(num != 0);
+    assume!(num < 1_000);
     if index == 0 {
         num == target
     } else {
