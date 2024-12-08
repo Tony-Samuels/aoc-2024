@@ -9,31 +9,31 @@ const EOL: u8 = b'\n';
 const ZERO: u8 = b'0';
 const SPACE: u8 = b' ';
 
-const ZERO_11: u64 = ZERO as u64 * 11;
-const ZERO_111: u64 = ZERO as u64 * 111;
+const ZERO_11: u16 = ZERO as u16 * 11;
+const ZERO_111: u16 = ZERO as u16 * 111;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn parse_3_or_shorter(input: &[u8]) -> (u64, u8, usize) {
+unsafe fn parse_3_or_shorter(input: &[u8]) -> (u16, u8, usize) {
     let n1 = *input.get_unchecked(0);
 
     let n2 = *input.get_unchecked(1);
     if n2 == EOL || n2 == SPACE {
-        let num = unchecked_sub(n1, ZERO) as u64;
+        let num = unchecked_sub(n1, ZERO) as u16;
         return (num, n2, 1);
     }
 
     let n3 = *input.get_unchecked(2);
     if n3 == EOL || n3 == SPACE {
         let num = unchecked_sub(
-            unchecked_add(unchecked_mul(n1 as u64, 10), n2 as u64),
+            unchecked_add(unchecked_mul(n1 as u16, 10), n2 as u16),
             ZERO_11,
         );
         return (num, n3, 2);
     }
     let num = unchecked_sub(
         unchecked_add(
-            unchecked_mul(n1 as u64, 100),
-            unchecked_add(unchecked_mul(n2 as u64, 10), n3 as u64),
+            unchecked_mul(n1 as u16, 100),
+            unchecked_add(unchecked_mul(n2 as u16, 10), n3 as u16),
         ),
         ZERO_111,
     );
@@ -75,8 +75,8 @@ pub fn part1(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p1(target: u64, nums: [u64; 12], index: usize) -> bool {
-    let num = *nums.get_unchecked(index);
+unsafe fn recurse_p1(target: u64, nums: [u16; 12], index: usize) -> bool {
+    let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
     } else {
@@ -119,8 +119,8 @@ pub fn part2(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p2(target: u64, nums: [u64; 12], index: usize) -> bool {
-    let num = *nums.get_unchecked(index);
+unsafe fn recurse_p2(target: u64, nums: [u16; 12], index: usize) -> bool {
+    let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
     } else {
