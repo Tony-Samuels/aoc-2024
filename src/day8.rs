@@ -1,6 +1,8 @@
+use std::intrinsics::unchecked_sub;
+
 use aoc_runner_derive::aoc;
 
-use crate::{debug, ArrayVec, Index};
+use crate::{debug, ArrayVec, BigBitSet, Index};
 
 const ZERO: u8 = b'0';
 const ANTENNA_OPTS: usize = (b'z' - b'0' + 1) as usize;
@@ -18,41 +20,60 @@ pub fn part1(input: &str) -> i32 {
 unsafe fn inner_p1<const DIM: usize>(input: &str) -> i32
 where
     [(); DIM * (DIM + 1)]:,
+    [(); DIM * (DIM + 1) / 8 + 1]:,
 {
     let input = input.as_bytes();
 
     let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
-    let mut antinodes = [false; DIM * (DIM + 1)];
+    let mut antinodes = BigBitSet::<{ DIM * (DIM + 1) / 8 + 1 }>::new();
     let mut count = 0;
 
     for y in 0..DIM as i8 {
         for x in 0..DIM as i8 {
             let index = Index::<DIM> { x, y };
             let &c = input.get_unchecked(index.to());
-            if c == b'.' || c == b'\n' {
+            if c == b'.' {
                 continue;
             }
 
             debug!("Checking {}, count {count}", c as char);
-            let antennae = antennae.get_unchecked_mut((c - ZERO) as usize);
+            let antennae = antennae.get_unchecked_mut(unchecked_sub(c, ZERO) as usize);
 
             for &antenna in antennae.into_iter() {
                 let diff = index - antenna;
                 if let Some(pos) = (antenna - diff).checked_to() {
-                    let antinode = antinodes.get_unchecked_mut(pos);
-                    count += !*antinode as i32;
-                    *antinode = true;
+                    let (antinode_index, antinode_mask) = antinodes.calc_byte_mask(pos);
+                    let antinode = antinodes.get_byte_unchecked_mut(antinode_index);
+                    count += ((*antinode & antinode_mask) == 0) as i32;
+                    *antinode |= antinode_mask;
                 }
                 if let Some(pos) = (index + diff).checked_to() {
-                    let antinode = antinodes.get_unchecked_mut(pos);
-                    count += !*antinode as i32;
-                    *antinode = true;
+                    let (antinode_index, antinode_mask) = antinodes.calc_byte_mask(pos);
+                    let antinode = antinodes.get_byte_unchecked_mut(antinode_index);
+                    count += ((*antinode & antinode_mask) == 0) as i32;
+                    *antinode |= antinode_mask;
                 }
             }
 
             antennae.push_unchecked(index);
         }
     }
+
+    debug!("Final map:\n{}", {
+        let mut s = String::new();
+        for (i, &c) in input.iter().enumerate() {
+            s.push(if antinodes.get_unchecked(i) {
+                if c == b'.' {
+                    '+'
+                } else {
+                    '#'
+                }
+            } else {
+                c as char
+            })
+        }
+        s
+    });
 
     count
 }
