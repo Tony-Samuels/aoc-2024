@@ -10,7 +10,14 @@
     portable_simd,
     stmt_expr_attributes
 )]
-use std::{fmt::Debug, hash::Hash, hint::unreachable_unchecked};
+use std::{
+    cmp::max,
+    fmt::Debug,
+    hash::Hash,
+    hint::unreachable_unchecked,
+    mem::MaybeUninit,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 use aoc_runner_derive::aoc_lib;
 
@@ -21,6 +28,7 @@ pub mod day4;
 pub mod day5;
 pub mod day6;
 pub mod day7;
+pub mod day8;
 
 aoc_lib! { year = 2024 }
 
@@ -232,6 +240,14 @@ impl<const N: usize, T> ArrayVec<N, T> {
     fn clear(&mut self) {
         self.len = 0;
     }
+
+    #[inline]
+    unsafe fn new_unchecked() -> Self {
+        Self {
+            inner: MaybeUninit::array_assume_init(MaybeUninit::uninit_array()),
+            len: 0,
+        }
+    }
 }
 
 #[allow(unused)]
@@ -290,3 +306,85 @@ where
 }
 
 impl<const N: usize, T> Eq for ArrayVec<N, T> where T: Eq {}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+struct Index<const DIM: usize> {
+    y: i16,
+    x: i16,
+}
+
+impl<const DIM: usize> Index<DIM> {
+    #[inline]
+    fn x(x: i16) -> Self {
+        Self { x, y: 0 }
+    }
+
+    #[inline]
+    fn y(y: i16) -> Self {
+        Self { x: 0, y }
+    }
+
+    #[inline]
+    fn checked_to(self) -> Option<usize> {
+        if self.x < 0 || self.y < 0 || self.x >= DIM as _ || self.y >= DIM as _ {
+            debug!("{self:?} is invalid");
+            None
+        } else {
+            Some(self.y as usize * (DIM + 1) + self.x as usize)
+        }
+    }
+
+    #[inline]
+    fn to(self) -> usize {
+        assume!(
+            self.x < DIM as _ && self.y < DIM as _,
+            "{self:?} is too large"
+        );
+        max(self.y, 0) as usize * (DIM + 1) + max(self.x, 0) as usize
+    }
+
+    #[inline]
+    fn fro(i: usize) -> Self {
+        Self {
+            y: (i / (DIM + 1)) as _,
+            x: (i % (DIM + 1)) as _,
+        }
+    }
+}
+
+impl<const DIM: usize> Add for Index<DIM> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<const DIM: usize> AddAssign for Index<DIM> {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+impl<const DIM: usize> Sub for Index<DIM> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl<const DIM: usize> SubAssign for Index<DIM> {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
