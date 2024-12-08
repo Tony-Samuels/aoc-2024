@@ -21,6 +21,7 @@ use std::{
     fmt::Debug,
     hash::Hash,
     hint::unreachable_unchecked,
+    intrinsics::{unchecked_div, unchecked_rem, unchecked_shl},
     mem::MaybeUninit,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
@@ -37,6 +38,35 @@ pub mod day7;
 pub mod day8;
 
 aoc_lib! { year = 2024 }
+
+pub struct BigBitSet<const BYTES: usize>([u8; BYTES]);
+
+impl<const BYTES: usize> BigBitSet<BYTES> {
+    pub fn new() -> Self {
+        Self([0; BYTES])
+    }
+
+    pub unsafe fn calc_byte_mask(&self, index: usize) -> (usize, u8) {
+        (
+            unchecked_div(index, 8),
+            unchecked_shl(1, unchecked_rem(index, 8)),
+        )
+    }
+
+    pub unsafe fn get_byte_unchecked_mut(&mut self, index: usize) -> &mut u8 {
+        self.0.get_unchecked_mut(index)
+    }
+
+    pub unsafe fn set_unchecked(&mut self, index: usize) {
+        *self.0.get_unchecked_mut(unchecked_div(index, 8)) |=
+            unchecked_shl(1, unchecked_rem(index, 8));
+    }
+
+    pub unsafe fn get_unchecked(&self, index: usize) -> bool {
+        *self.0.get_unchecked(unchecked_div(index, 8)) & unchecked_shl(1, unchecked_rem(index, 8))
+            != 0
+    }
+}
 
 pub struct BitIter(pub u128);
 
