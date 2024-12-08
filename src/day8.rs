@@ -2,6 +2,13 @@ use aoc_runner_derive::aoc;
 
 use crate::{debug, ArrayVec, Index};
 
+const ZERO: u8 = b'0';
+const ANTENNA_OPTS: usize = (b'z' - b'0' + 1) as usize;
+const _: () = {
+    assert!(b'0' < b'Z');
+    assert!(b'Z' < b'z');
+};
+
 #[aoc(day8, part1)]
 pub fn part1(input: &str) -> i32 {
     unsafe { inner_p1::<50>(input) }
@@ -14,7 +21,7 @@ where
 {
     let input = input.as_bytes();
 
-    let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); u8::MAX as _];
+    let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
     let mut antinodes = [false; DIM * (DIM + 1)];
     let mut count = 0;
 
@@ -27,7 +34,7 @@ where
             }
 
             debug!("Checking {}, count {count}", c as char);
-            let antennae = antennae.get_unchecked_mut(c as usize);
+            let antennae = antennae.get_unchecked_mut((c - ZERO) as usize);
 
             for &antenna in antennae.into_iter() {
                 let diff = index - antenna;
@@ -62,7 +69,7 @@ where
 {
     let input = input.as_bytes();
 
-    let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); u8::MAX as _];
+    let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
     let mut antinodes = [false; DIM * (DIM + 1)];
     let mut count = 0;
 
@@ -75,7 +82,7 @@ where
             }
 
             debug!("Checking {}, count {count}", c as char);
-            let antennae = antennae.get_unchecked_mut(c as usize);
+            let antennae = antennae.get_unchecked_mut((c - ZERO) as usize);
 
             for &antenna in antennae.into_iter() {
                 let diff = index - antenna;
