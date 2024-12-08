@@ -29,7 +29,7 @@ where
         for x in 0..DIM as i8 {
             let index = Index::<DIM> { x, y };
             let &c = input.get_unchecked(index.to());
-            if c == b'.' || c == b'\n' {
+            if c == b'.' {
                 continue;
             }
 
@@ -77,7 +77,7 @@ where
         for x in 0..DIM as i8 {
             let index = Index::<DIM> { x, y };
             let &c = input.get_unchecked(index.to());
-            if c == b'.' || c == b'\n' {
+            if c == b'.' {
                 continue;
             }
 
