@@ -129,12 +129,10 @@ unsafe fn recurse_p2(target: u64, nums: &[u16; 12], index: usize) -> bool {
         (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums, index - 1))
             || (target >= num && recurse_p2(unchecked_sub(target, num), nums, index - 1)
                 || ({
-                    let tens = if num >= 100 {
-                        1_000
-                    } else if num >= 10 {
-                        100
-                    } else {
-                        10
+                    let tens = match num {
+                        100.. => 1_000,
+                        10..100 => 100,
+                        0..10 => 10,
                     };
                     unchecked_rem(target, tens) == num
                         && recurse_p2(unchecked_div(target, tens), nums, index - 1)
