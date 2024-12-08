@@ -1,9 +1,8 @@
 use std::intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
 
 use aoc_runner_derive::aoc;
-use atoi_simd::parse_any_pos;
 
-use crate::Assume;
+use crate::{Assume, Unreachable};
 
 const EOL: u8 = b'\n';
 const ZERO: u8 = b'0';
@@ -11,6 +10,20 @@ const SPACE: u8 = b' ';
 
 const ZERO_11: u64 = ZERO as u64 * 11;
 const ZERO_111: u64 = ZERO as u64 * 111;
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn parse_target(input: &[u8]) -> (u64, usize) {
+    let mut n = unchecked_sub(*input.get_unchecked(0), ZERO) as u64;
+    for i in 1.. {
+        let c = *input.get_unchecked(i);
+        if c == b':' {
+            return (n, i);
+        }
+        n = unchecked_add(unchecked_mul(n, 10), unchecked_sub(c, ZERO) as u64);
+    }
+
+    Unreachable.assume()
+}
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn parse_3_or_shorter(input: &[u8]) -> (u64, u8, usize) {
@@ -51,7 +64,7 @@ pub fn part1(input: &str) -> u64 {
         let mut pos = 0;
 
         while input.len() > pos + 3 {
-            let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+            let (target, bytes) = parse_target(input.get_unchecked(pos..));
             pos += bytes + 2;
 
             let mut index = 0;
@@ -95,7 +108,7 @@ pub fn part2(input: &str) -> u64 {
         let mut pos = 0;
 
         while input.len() > pos + 3 {
-            let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+            let (target, bytes) = parse_target(input.get_unchecked(pos..));
             pos += bytes + 2;
 
             let mut index = 0;
