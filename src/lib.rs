@@ -221,6 +221,7 @@ where
     }
 }
 
+#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T> {
     #[inline]
     fn as_slice(&self) -> &[T] {
@@ -233,6 +234,7 @@ impl<const N: usize, T> ArrayVec<N, T> {
     }
 }
 
+#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T>
 where
     T: Copy,
@@ -255,6 +257,7 @@ where
     }
 }
 
+#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T>
 where
     T: Copy + Default,
