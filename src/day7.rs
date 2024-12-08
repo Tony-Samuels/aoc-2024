@@ -75,6 +75,7 @@ pub fn part1(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
 unsafe fn recurse_p1(target: u64, nums: &[u16; 12], index: usize) -> bool {
     assume!(index < 12);
     let num = *nums.get_unchecked(index) as u64;
@@ -120,6 +121,7 @@ pub fn part2(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[inline]
 unsafe fn recurse_p2(target: u64, nums: &[u16; 12], index: usize) -> bool {
     assume!(index < 12);
     let num = *nums.get_unchecked(index) as u64;
