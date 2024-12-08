@@ -2,9 +2,8 @@ use std::intrinsics::unchecked_sub;
 
 use aoc_runner_derive::aoc;
 
-use crate::{debug, ArrayVec, BigBitSet, Index};
+use crate::{debug, ArrayVec, BigBitSet, Index, EOL, ZERO};
 
-const ZERO: u8 = b'0';
 const ANTENNA_OPTS: usize = (b'z' - b'0' + 1) as usize;
 const _: () = {
     assert!(b'0' < b'Z');
@@ -98,7 +97,7 @@ where
         for x in 0..DIM as i8 {
             let index = Index::<DIM> { x, y };
             let &c = input.get_unchecked(index.to());
-            if c == b'.' || c == b'\n' {
+            if c == b'.' || c == EOL {
                 continue;
             }
 

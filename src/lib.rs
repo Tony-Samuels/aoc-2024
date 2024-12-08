@@ -39,6 +39,9 @@ pub mod day8;
 
 aoc_lib! { year = 2024 }
 
+const ZERO: u8 = b'0';
+const EOL: u8 = b'\n';
+
 pub struct BigBitSet<const BYTES: usize>([u8; BYTES]);
 
 impl<const BYTES: usize> BigBitSet<BYTES> {
