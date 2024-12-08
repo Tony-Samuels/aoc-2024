@@ -65,7 +65,7 @@ pub fn part1(input: &str) -> u64 {
                 }
             }
 
-            let math_checks_out = recurse_p1(target, vec, index - 1);
+            let math_checks_out = recurse_p1(target, &vec, index - 1);
             count += target * math_checks_out as u64;
         }
 
@@ -75,7 +75,7 @@ pub fn part1(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p1(target: u64, nums: [u16; 12], index: usize) -> bool {
+unsafe fn recurse_p1(target: u64, nums: &[u16; 12], index: usize) -> bool {
     let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
@@ -109,7 +109,7 @@ pub fn part2(input: &str) -> u64 {
                 }
             }
 
-            let math_checks_out = recurse_p2(target, vec, index - 1);
+            let math_checks_out = recurse_p2(target, &vec, index - 1);
             count += target * math_checks_out as u64;
         }
 
@@ -119,7 +119,7 @@ pub fn part2(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p2(target: u64, nums: [u16; 12], index: usize) -> bool {
+unsafe fn recurse_p2(target: u64, nums: &[u16; 12], index: usize) -> bool {
     let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
