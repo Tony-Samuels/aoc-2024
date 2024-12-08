@@ -1,4 +1,9 @@
-#![allow(incomplete_features, internal_features, static_mut_refs)]
+#![allow(
+    clippy::missing_transmute_annotations,
+    incomplete_features,
+    internal_features,
+    static_mut_refs
+)]
 #![feature(
     core_intrinsics,
     generic_const_exprs,

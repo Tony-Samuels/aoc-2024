@@ -1,11 +1,327 @@
-use std::intrinsics::{unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
+use std::{
+    arch::x86_64::{
+        _mm_madd_epi16, _mm_maddubs_epi16, _mm_packus_epi32, _mm_set_epi16, _mm_set_epi8,
+    },
+    intrinsics::{unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub},
+    mem::transmute,
+    simd::{cmp::SimdPartialEq, Simd},
+};
 
 use aoc_runner_derive::aoc;
-use atoi_simd::parse_any_pos;
 
-use crate::{ArrayVec, Assume};
+use crate::{debug, ArrayVec, Assume, Unreachable};
 
+const ZERO: u8 = b'0';
+const ZEROES_128: u128 = {
+    let mut num = ZERO as u128;
+    let mut last = 0;
+    while num != last {
+        last = num;
+        num = (num << 8) + ZERO as u128;
+    }
+    num
+};
 const EOL: u8 = b'\n';
+
+const GATHER_INDICES: [[usize; 16]; 17] = [
+    [usize::MAX; 16],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+    ],
+    [
+        usize::MAX,
+        usize::MAX,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+    ],
+    [usize::MAX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+];
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn simd_parse(input: &[u8], index: [usize; 16]) -> u64 {
+    let nums = Simd::gather_or_default(input, Simd::from_array(index));
+    let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+    let nums = _mm_maddubs_epi16(nums.into(), mult);
+    let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+    let nums = _mm_madd_epi16(nums, mult);
+    let nums = _mm_packus_epi32(nums, nums);
+    let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10_000, 1, 10_000);
+    let nums = _mm_madd_epi16(nums, mult);
+    let nums: Simd<u64, 2> = nums.into();
+    let num = nums[0];
+
+    (num & 0xffffffff) * 100_000_000 + (num >> 32)
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn parse_num(input: &[u8]) -> (u64, usize) {
+    let input_simd = Simd::<u8, 16>::load_or_default(input);
+    let len = (input_simd.simd_eq(Simd::splat(EOL))
+        | input_simd.simd_eq(Simd::splat(b' '))
+        | input_simd.simd_eq(Simd::splat(b':')))
+    .to_bitmask()
+    .trailing_zeros() as usize;
+    let input: [u8; 16] = unchecked_sub(transmute::<_, u128>(input_simd), ZEROES_128).to_ne_bytes();
+    let num = match len {
+        1 => input[0] as _,
+        2 => input[0] as u64 * 10 + input[1] as u64,
+        3 => input[0] as u64 * 100 + input[1] as u64 * 10 + input[2] as u64,
+        4..=16 => simd_parse(&input[..len], *GATHER_INDICES.get_unchecked(len)),
+        _ => {
+            debug!(
+                "Unexpected number length {len} in {}",
+                std::str::from_utf8(&input[..len]).unwrap()
+            );
+            Unreachable.assume();
+        }
+    };
+
+    (num, len)
+}
 
 #[aoc(day7, part1)]
 pub fn part1(input: &str) -> u64 {
@@ -19,10 +335,10 @@ pub fn part1(input: &str) -> u64 {
         while input.len() > pos + 3 {
             vec.clear();
 
-            let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+            let (target, bytes) = parse_num(input.get_unchecked(pos..));
             pos += bytes + 2;
             loop {
-                let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+                let (next, bytes) = parse_num(input.get_unchecked(pos..));
                 vec.push_unchecked(next);
                 let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
@@ -63,10 +379,10 @@ pub fn part2(input: &str) -> u64 {
         while input.len() > pos + 3 {
             vec.clear();
 
-            let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+            let (target, bytes) = parse_num(input.get_unchecked(pos..));
             pos += bytes + 2;
             loop {
-                let (next, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
+                let (next, bytes) = parse_num(input.get_unchecked(pos..));
                 vec.push_unchecked(next);
                 let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
