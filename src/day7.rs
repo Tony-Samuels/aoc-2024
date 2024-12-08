@@ -1,4 +1,4 @@
-use std::intrinsics::{unchecked_div, unchecked_rem, unchecked_sub};
+use std::intrinsics::{unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
 
 use aoc_runner_derive::aoc;
 use atoi_simd::parse_any_pos;
@@ -93,7 +93,12 @@ unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
         (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums))
             || (target >= num && recurse_p2(unchecked_sub(target, num), nums)
                 || ({
-                    let tens = 10u64.pow(num.ilog10() + 1);
+                    let mut temp = num;
+                    let mut tens = 1;
+                    while temp > 0 {
+                        tens = unchecked_mul(tens, 10);
+                        temp = unchecked_div(temp, 10);
+                    }
                     unchecked_rem(target, tens) == num
                         && recurse_p2(unchecked_div(target, tens), nums)
                 }))
