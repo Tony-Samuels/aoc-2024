@@ -89,6 +89,19 @@ macro_rules! assume {
     }};
 }
 
+#[macro_export]
+macro_rules! p {
+    ($typ:ty, $num:expr) => {
+        ($num - b'0') as $typ
+    };
+    ($typ:ty, $tens:expr, $units:expr) => {
+        (($tens - b'0') * 10 + $units - b'0') as $typ
+    };
+    ($typ:ty, $hundreds:expr, $tens:expr, $units:expr) => {
+        (($hundreds - b'0') as $typ * 100 + ($tens - b'0') as $typ * 10 + ($units - b'0') as $typ)
+    };
+}
+
 #[allow(unused)]
 trait Assume: Sized {
     type T;
