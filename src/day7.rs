@@ -9,21 +9,36 @@ const EOL: u8 = b'\n';
 const ZERO: u8 = b'0';
 const SPACE: u8 = b' ';
 
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn parse_3_or_shorter(input: &[u8]) -> (u64, usize) {
-    let mut num = unchecked_sub(*input.get_unchecked(0), ZERO) as u64;
-    let mut i = 1;
+const ZERO_11: u64 = ZERO as u64 * 11;
+const ZERO_111: u64 = ZERO as u64 * 111;
 
-    loop {
-        let c = *input.get_unchecked(i);
-        if c == EOL || c == SPACE {
-            break;
-        }
-        num = unchecked_add(unchecked_mul(num, 10), unchecked_sub(c, ZERO) as u64);
-        i += 1;
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn parse_3_or_shorter(input: &[u8]) -> (u64, u8, usize) {
+    let n1 = *input.get_unchecked(0);
+
+    let n2 = *input.get_unchecked(1);
+    if n2 == EOL || n2 == SPACE {
+        let num = unchecked_sub(n1, ZERO) as u64;
+        return (num, n2, 1);
     }
 
-    (num, i)
+    let n3 = *input.get_unchecked(2);
+    if n3 == EOL || n3 == SPACE {
+        let num = unchecked_sub(
+            unchecked_add(unchecked_mul(n1 as u64, 10), n2 as u64),
+            ZERO_11,
+        );
+        return (num, n3, 2);
+    }
+    let num = unchecked_sub(
+        unchecked_add(
+            unchecked_mul(n1 as u64, 100),
+            unchecked_add(unchecked_mul(n2 as u64, 10), n3 as u64),
+        ),
+        ZERO_111,
+    );
+
+    (num, *input.get_unchecked(3), 3)
 }
 
 #[aoc(day7, part1)]
@@ -41,9 +56,8 @@ pub fn part1(input: &str) -> u64 {
             let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             pos += bytes + 2;
             loop {
-                let (next, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
+                let (next, term, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
                 vec.push_unchecked(next);
-                let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
                 if term == EOL {
                     break;
@@ -85,9 +99,8 @@ pub fn part2(input: &str) -> u64 {
             let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             pos += bytes + 2;
             loop {
-                let (next, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
+                let (next, term, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
                 vec.push_unchecked(next);
-                let term = *input.get_unchecked(pos + bytes);
                 pos += bytes + 1;
                 if term == EOL {
                     break;
@@ -168,10 +181,10 @@ mod tests {
     #[test]
     fn parsing() {
         unsafe {
-            assert_eq!(parse_3_or_shorter(b"1\n00"), (1, 1));
-            assert_eq!(parse_3_or_shorter(b"1 0 "), (1, 1));
-            assert_eq!(parse_3_or_shorter(b"12 0"), (12, 2));
-            assert_eq!(parse_3_or_shorter(b"123\n"), (123, 3));
+            assert_eq!(parse_3_or_shorter(b"1\n00"), (1, EOL, 1));
+            assert_eq!(parse_3_or_shorter(b"1 0\n"), (1, SPACE, 1));
+            assert_eq!(parse_3_or_shorter(b"12 3"), (12, SPACE, 2));
+            assert_eq!(parse_3_or_shorter(b"123\n"), (123, EOL, 3));
         }
     }
 }
