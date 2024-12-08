@@ -1,3 +1,5 @@
+use std::intrinsics::{unchecked_div, unchecked_rem, unchecked_sub};
+
 use aoc_runner_derive::aoc;
 use atoi_simd::parse_any_pos;
 
@@ -44,8 +46,8 @@ unsafe fn recurse_p1<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
     if nums.len == 0 {
         num == target
     } else {
-        (target % num == 0 && recurse_p1(target / num, nums))
-            || (target >= num && recurse_p1(target - num, nums))
+        (unchecked_rem(target, num) == 0 && recurse_p1(unchecked_div(target, num), nums))
+            || (target >= num && recurse_p1(unchecked_sub(target, num), nums))
     }
 }
 
@@ -88,11 +90,12 @@ unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
     if nums.len == 0 {
         num == target
     } else {
-        (target % num == 0 && recurse_p2(target / num, nums))
-            || (target >= num && recurse_p2(target - num, nums)
+        (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums))
+            || (target >= num && recurse_p2(unchecked_sub(target, num), nums)
                 || ({
                     let tens = 10u64.pow(num.ilog10() + 1);
-                    target % tens == num && recurse_p2(target / tens, nums)
+                    unchecked_rem(target, tens) == num
+                        && recurse_p2(unchecked_div(target, tens), nums)
                 }))
     }
 }
