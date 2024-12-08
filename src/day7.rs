@@ -3,7 +3,7 @@ use std::intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem
 use aoc_runner_derive::aoc;
 use atoi_simd::parse_any_pos;
 
-use crate::Assume;
+use crate::{assume, Assume as _};
 
 const EOL: u8 = b'\n';
 const ZERO: u8 = b'0';
@@ -76,6 +76,7 @@ pub fn part1(input: &str) -> u64 {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn recurse_p1(target: u64, nums: &[u16; 12], index: usize) -> bool {
+    assume!(index < 12);
     let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
@@ -123,6 +124,7 @@ pub fn part2(input: &str) -> u64 {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn recurse_p2(target: u64, nums: &[u16; 12], index: usize) -> bool {
+    assume!(index < 12);
     let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
