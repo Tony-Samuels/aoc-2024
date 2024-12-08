@@ -80,12 +80,9 @@ unsafe fn recurse_p1(target: u64, nums: &[u16; 12], index: usize) -> bool {
     let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
-    } else if unchecked_rem(target, num) == 0
-        && recurse_p1(unchecked_div(target, num), nums, unchecked_sub(index, 1))
-    {
-        true
     } else {
-        target >= num && recurse_p1(unchecked_sub(target, num), nums, unchecked_sub(index, 1))
+        (unchecked_rem(target, num) == 0 && recurse_p1(unchecked_div(target, num), nums, index - 1))
+            || (target >= num && recurse_p1(unchecked_sub(target, num), nums, index - 1))
     }
 }
 
@@ -128,22 +125,20 @@ unsafe fn recurse_p2(target: u64, nums: &[u16; 12], index: usize) -> bool {
     let num = *nums.get_unchecked(index) as u64;
     if index == 0 {
         num == target
-    } else if unchecked_rem(target, num) == 0
-        && recurse_p2(unchecked_div(target, num), nums, index - 1)
-    {
-        true
-    } else if target >= num && recurse_p2(unchecked_sub(target, num), nums, index - 1) {
-        true
     } else {
-        let tens = if num >= 100 {
-            1_000
-        } else if num >= 10 {
-            100
-        } else {
-            10
-        };
-        unchecked_rem(target, tens) == num
-            && recurse_p2(unchecked_div(target, tens), nums, index - 1)
+        (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums, index - 1))
+            || (target >= num && recurse_p2(unchecked_sub(target, num), nums, index - 1)
+                || ({
+                    let tens = if num >= 100 {
+                        1_000
+                    } else if num >= 10 {
+                        100
+                    } else {
+                        10
+                    };
+                    unchecked_rem(target, tens) == num
+                        && recurse_p2(unchecked_div(target, tens), nums, index - 1)
+                }))
     }
 }
 
