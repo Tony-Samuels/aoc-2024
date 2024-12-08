@@ -66,7 +66,7 @@ unsafe fn recurse_p1<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
         num == target
     } else {
         (unchecked_rem(target, num) == 0 && recurse_p1(unchecked_div(target, num), nums))
-            || (target >= num && recurse_p1(unchecked_sub(target, num), nums))
+            || (target > num && recurse_p1(unchecked_sub(target, num), nums))
     }
 }
 
@@ -110,7 +110,7 @@ unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
         num == target
     } else {
         (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums))
-            || (target >= num && recurse_p2(unchecked_sub(target, num), nums)
+            || (target > num && recurse_p2(unchecked_sub(target, num), nums)
                 || ({
                     let tens = if num >= 100 {
                         1_000
