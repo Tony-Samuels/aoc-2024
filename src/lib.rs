@@ -1,5 +1,6 @@
-#![allow(incomplete_features, static_mut_refs)]
+#![allow(incomplete_features, internal_features, static_mut_refs)]
 #![feature(
+    core_intrinsics,
     generic_const_exprs,
     generic_arg_infer,
     inline_const_pat,
