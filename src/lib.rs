@@ -9,7 +9,7 @@
     portable_simd,
     stmt_expr_attributes
 )]
-use std::{fmt::Debug, hint::unreachable_unchecked};
+use std::{fmt::Debug, hash::Hash, hint::unreachable_unchecked};
 
 use aoc_runner_derive::aoc_lib;
 
@@ -198,19 +198,31 @@ struct ArrayVec<const N: usize, T> {
     len: usize,
 }
 
-#[allow(unused)]
-impl<const N: usize, T> ArrayVec<N, T>
+impl<const N: usize, T> Hash for ArrayVec<N, T>
 where
-    T: Copy + Default,
-    [T; N]:,
+    [T]: Hash,
 {
-    fn new() -> Self {
-        Self {
-            inner: [T::default(); N],
-            len: 0,
-        }
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_slice().hash(state)
+    }
+}
+
+impl<const N: usize, T> ArrayVec<N, T> {
+    #[inline]
+    fn as_slice(&self) -> &[T] {
+        &self.inner[..self.len]
     }
 
+    #[inline]
+    fn clear(&mut self) {
+        self.len = 0;
+    }
+}
+
+impl<const N: usize, T> ArrayVec<N, T>
+where
+    T: Copy,
+{
     #[inline]
     unsafe fn push_unchecked(&mut self, item: T) {
         *self.inner.get_unchecked_mut(self.len) = item;
@@ -223,19 +235,22 @@ where
     }
 
     #[inline]
-    fn as_slice(&self) -> &[T] {
-        &self.inner[..self.len]
-    }
-
-    #[inline]
-    fn clear(&mut self) {
-        self.len = 0;
-    }
-
-    #[inline]
     unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
         self.get_unchecked(self.len)
+    }
+}
+
+impl<const N: usize, T> ArrayVec<N, T>
+where
+    T: Copy + Default,
+    [T; N]:,
+{
+    fn new() -> Self {
+        Self {
+            inner: [T::default(); N],
+            len: 0,
+        }
     }
 }
 

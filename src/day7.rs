@@ -121,7 +121,6 @@ pub fn part2(input: &str) -> u64 {
 unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) -> bool {
     if nums.len == 1 {
         let num = nums.pop_unchecked();
-
         num == target
     } else {
         let num = nums.pop_unchecked();
