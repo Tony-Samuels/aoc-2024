@@ -25,8 +25,8 @@ where
     let mut antinodes = [false; DIM * (DIM + 1)];
     let mut count = 0;
 
-    for y in 0..DIM as i16 {
-        for x in 0..DIM as i16 {
+    for y in 0..DIM as i8 {
+        for x in 0..DIM as i8 {
             let index = Index::<DIM> { x, y };
             let &c = input.get_unchecked(index.to());
             if c == b'.' || c == b'\n' {
@@ -73,8 +73,8 @@ where
     let mut antinodes = [false; DIM * (DIM + 1)];
     let mut count = 0;
 
-    for y in 0..DIM as i16 {
-        for x in 0..DIM as i16 {
+    for y in 0..DIM as i8 {
+        for x in 0..DIM as i8 {
             let index = Index::<DIM> { x, y };
             let &c = input.get_unchecked(index.to());
             if c == b'.' || c == b'\n' {

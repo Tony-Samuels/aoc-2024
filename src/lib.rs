@@ -311,18 +311,18 @@ impl<const N: usize, T> Eq for ArrayVec<N, T> where T: Eq {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Index<const DIM: usize> {
-    y: i16,
-    x: i16,
+    y: i8,
+    x: i8,
 }
 
 impl<const DIM: usize> Index<DIM> {
     #[inline]
-    pub fn x(x: i16) -> Self {
+    pub fn x(x: i8) -> Self {
         Self { x, y: 0 }
     }
 
     #[inline]
-    pub fn y(y: i16) -> Self {
+    pub fn y(y: i8) -> Self {
         Self { x: 0, y }
     }
 
