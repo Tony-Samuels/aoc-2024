@@ -1,4 +1,10 @@
-#![allow(incomplete_features, internal_features, static_mut_refs)]
+#![allow(
+    clippy::missing_safety_doc,
+    clippy::new_without_default,
+    incomplete_features,
+    internal_features,
+    static_mut_refs
+)]
 #![feature(
     core_intrinsics,
     generic_const_exprs,
@@ -32,7 +38,7 @@ pub mod day8;
 
 aoc_lib! { year = 2024 }
 
-struct BitIter(u128);
+pub struct BitIter(pub u128);
 
 impl Iterator for BitIter {
     type Item = usize;
@@ -110,8 +116,7 @@ macro_rules! p {
     };
 }
 
-#[allow(unused)]
-trait Assume: Sized {
+pub trait Assume: Sized {
     type T;
 
     #[cfg(any(test, feature = "debug"))]
@@ -215,7 +220,7 @@ impl Assume for bool {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ArrayVec<const N: usize, T> {
+pub struct ArrayVec<const N: usize, T> {
     inner: [T; N],
     len: usize,
 }
@@ -229,20 +234,19 @@ where
     }
 }
 
-#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T> {
     #[inline]
-    fn as_slice(&self) -> &[T] {
+    pub fn as_slice(&self) -> &[T] {
         &self.inner[..self.len]
     }
 
     #[inline]
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.len = 0;
     }
 
     #[inline]
-    unsafe fn new_unchecked() -> Self {
+    pub unsafe fn new_unchecked() -> Self {
         Self {
             inner: MaybeUninit::array_assume_init(MaybeUninit::uninit_array()),
             len: 0,
@@ -250,36 +254,34 @@ impl<const N: usize, T> ArrayVec<N, T> {
     }
 }
 
-#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T>
 where
     T: Copy,
 {
     #[inline]
-    unsafe fn push_unchecked(&mut self, item: T) {
+    pub unsafe fn push_unchecked(&mut self, item: T) {
         *self.inner.get_unchecked_mut(self.len) = item;
         self.len += 1;
     }
 
     #[inline]
-    unsafe fn get_unchecked(&self, index: usize) -> T {
+    pub unsafe fn get_unchecked(&self, index: usize) -> T {
         *self.inner.get_unchecked(index)
     }
 
     #[inline]
-    unsafe fn pop_unchecked(&mut self) -> T {
+    pub unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
         self.get_unchecked(self.len)
     }
 }
 
-#[allow(unused)]
 impl<const N: usize, T> ArrayVec<N, T>
 where
     T: Copy + Default,
     [T; N]:,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             inner: [T::default(); N],
             len: 0,
@@ -308,24 +310,24 @@ where
 impl<const N: usize, T> Eq for ArrayVec<N, T> where T: Eq {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct Index<const DIM: usize> {
+pub struct Index<const DIM: usize> {
     y: i16,
     x: i16,
 }
 
 impl<const DIM: usize> Index<DIM> {
     #[inline]
-    fn x(x: i16) -> Self {
+    pub fn x(x: i16) -> Self {
         Self { x, y: 0 }
     }
 
     #[inline]
-    fn y(y: i16) -> Self {
+    pub fn y(y: i16) -> Self {
         Self { x: 0, y }
     }
 
     #[inline]
-    fn checked_to(self) -> Option<usize> {
+    pub fn checked_to(self) -> Option<usize> {
         if self.x < 0 || self.y < 0 || self.x >= DIM as _ || self.y >= DIM as _ {
             debug!("{self:?} is invalid");
             None
@@ -335,7 +337,7 @@ impl<const DIM: usize> Index<DIM> {
     }
 
     #[inline]
-    fn to(self) -> usize {
+    pub fn to(self) -> usize {
         assume!(
             self.x < DIM as _ && self.y < DIM as _,
             "{self:?} is too large"
@@ -344,7 +346,7 @@ impl<const DIM: usize> Index<DIM> {
     }
 
     #[inline]
-    fn fro(i: usize) -> Self {
+    pub fn fro(i: usize) -> Self {
         Self {
             y: (i / (DIM + 1)) as _,
             x: (i % (DIM + 1)) as _,
