@@ -3,7 +3,7 @@ use std::intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem
 use aoc_runner_derive::aoc;
 use atoi_simd::parse_any_pos;
 
-use crate::{ArrayVec, Assume};
+use crate::Assume;
 
 const EOL: u8 = b'\n';
 const ZERO: u8 = b'0';
@@ -47,24 +47,25 @@ pub fn part1(input: &str) -> u64 {
     unsafe fn inner(input: &str) -> u64 {
         let input = input.as_bytes();
         let mut count = 0;
-        let mut vec = ArrayVec::<12, u64>::new();
+        let mut vec = [0; 12];
         let mut pos = 0;
 
         while input.len() > pos + 3 {
-            vec.clear();
-
             let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             pos += bytes + 2;
+
+            let mut index = 0;
             loop {
                 let (next, term, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
-                vec.push_unchecked(next);
+                *vec.get_unchecked_mut(index) = next;
+                index += 1;
                 pos += bytes + 1;
                 if term == EOL {
                     break;
                 }
             }
 
-            let math_checks_out = recurse_p1(target, vec);
+            let math_checks_out = recurse_p1(target, vec, index - 1);
             count += target * math_checks_out as u64;
         }
 
@@ -74,13 +75,13 @@ pub fn part1(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p1<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) -> bool {
-    let num = nums.pop_unchecked();
-    if nums.len == 0 {
+unsafe fn recurse_p1(target: u64, nums: [u64; 12], index: usize) -> bool {
+    let num = *nums.get_unchecked(index);
+    if index == 0 {
         num == target
     } else {
-        (unchecked_rem(target, num) == 0 && recurse_p1(unchecked_div(target, num), nums))
-            || (target >= num && recurse_p1(unchecked_sub(target, num), nums))
+        (unchecked_rem(target, num) == 0 && recurse_p1(unchecked_div(target, num), nums, index - 1))
+            || (target >= num && recurse_p1(unchecked_sub(target, num), nums, index - 1))
     }
 }
 
@@ -90,24 +91,25 @@ pub fn part2(input: &str) -> u64 {
     unsafe fn inner(input: &str) -> u64 {
         let input = input.as_bytes();
         let mut count = 0;
-        let mut vec = ArrayVec::<12, u64>::new();
+        let mut vec = [0; 12];
         let mut pos = 0;
 
         while input.len() > pos + 3 {
-            vec.clear();
-
             let (target, bytes) = parse_any_pos(input.get_unchecked(pos..)).assume();
             pos += bytes + 2;
+
+            let mut index = 0;
             loop {
                 let (next, term, bytes) = parse_3_or_shorter(input.get_unchecked(pos..));
-                vec.push_unchecked(next);
+                *vec.get_unchecked_mut(index) = next;
+                index += 1;
                 pos += bytes + 1;
                 if term == EOL {
                     break;
                 }
             }
 
-            let math_checks_out = recurse_p2(target, vec);
+            let math_checks_out = recurse_p2(target, vec, index - 1);
             count += target * math_checks_out as u64;
         }
 
@@ -117,13 +119,13 @@ pub fn part2(input: &str) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) -> bool {
-    let num = nums.pop_unchecked();
-    if nums.len == 0 {
+unsafe fn recurse_p2(target: u64, nums: [u64; 12], index: usize) -> bool {
+    let num = *nums.get_unchecked(index);
+    if index == 0 {
         num == target
     } else {
-        (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums))
-            || (target >= num && recurse_p2(unchecked_sub(target, num), nums)
+        (unchecked_rem(target, num) == 0 && recurse_p2(unchecked_div(target, num), nums, index - 1))
+            || (target >= num && recurse_p2(unchecked_sub(target, num), nums, index - 1)
                 || ({
                     let tens = if num >= 100 {
                         1_000
@@ -133,7 +135,7 @@ unsafe fn recurse_p2<const N: usize>(target: u64, mut nums: ArrayVec<N, u64>) ->
                         10
                     };
                     unchecked_rem(target, tens) == num
-                        && recurse_p2(unchecked_div(target, tens), nums)
+                        && recurse_p2(unchecked_div(target, tens), nums, index - 1)
                 }))
     }
 }
