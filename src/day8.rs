@@ -1,5 +1,8 @@
-use core::str;
-use std::simd::{cmp::SimdPartialOrd as _, Simd};
+use std::{
+    hint::black_box,
+    mem::{transmute, MaybeUninit},
+    simd::{cmp::SimdPartialOrd as _, Simd},
+};
 
 use aoc_runner_derive::aoc;
 
@@ -47,7 +50,7 @@ unsafe fn inner_p1(input: &str) -> i32 {
         debug!("Mask:\n{mask:050b}\n{}", {
             let mut line = input.cast::<[u8; DIM]>().read_unaligned();
             line.reverse();
-            str::from_utf8(&line).unwrap().to_owned()
+            std::str::from_utf8(&line).unwrap().to_owned()
         });
 
         for x in BitIter(mask) {
@@ -108,10 +111,15 @@ pub fn part2(input: &str) -> i32 {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner_p2(input: &str) -> i32 {
+    let mut antinodes: [bool; DIM * (DIM + 1)] = {
+        let mut antinodes: [MaybeUninit<u16>; DIM * (DIM + 1) / 2] = MaybeUninit::uninit_array();
+        for n in antinodes.iter_mut() {
+            n.write(black_box(0));
+        }
+        transmute(antinodes)
+    };
     let mut input = input.as_bytes().as_ptr();
-
     let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
-    let mut antinodes = [false; DIM * (DIM + 1)];
     let mut count = 0;
 
     let zeroes = Simd::splat(ZERO);
@@ -129,7 +137,7 @@ unsafe fn inner_p2(input: &str) -> i32 {
         debug!("Mask:\n{mask:050b}\n{}", {
             let mut line = input.cast::<[u8; DIM]>().read_unaligned();
             line.reverse();
-            str::from_utf8(&line).unwrap().to_owned()
+            std::str::from_utf8(&line).unwrap().to_owned()
         });
 
         for x in BitIter(mask) {
