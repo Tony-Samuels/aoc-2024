@@ -40,8 +40,8 @@ pub mod day8;
 
 aoc_lib! { year = 2024 }
 
-const ZERO: u8 = b'0';
-const EOL: u8 = b'\n';
+pub const ZERO: u8 = b'0';
+pub const EOL: u8 = b'\n';
 
 pub struct BigBitSet<const BYTES: usize>([u8; BYTES]);
 
@@ -81,7 +81,6 @@ macro_rules! bit_iter_n {
                 type Item = usize;
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
                     unsafe fn inner(iter: &mut [<BitIter $typ:upper>]) -> Option<usize> {
                         if iter.0 == 0 {
                             None

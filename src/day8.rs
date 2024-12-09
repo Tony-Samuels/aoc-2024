@@ -3,7 +3,7 @@ use std::simd::{cmp::SimdPartialOrd as _, Simd};
 
 use aoc_runner_derive::aoc;
 
-use crate::{debug, ArrayVec, BigBitSet, BitIterU64 as BitIter, IndexI8 as Index, EOL, ZERO};
+use crate::{debug, ArrayVec, BigBitSet, BitIterU64 as BitIter, IndexI8 as Index, ZERO};
 
 const ANTENNA_OPTS: usize = (b'z' - b'0' + 1) as usize;
 const _: () = {
@@ -103,33 +103,46 @@ unsafe fn inner_p1(input: &str) -> i32 {
 
 #[aoc(day8, part2)]
 pub fn part2(input: &str) -> i32 {
-    unsafe { inner_p2::<50>(input) }
+    unsafe { inner_p2(input) }
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner_p2<const DIM: usize>(input: &str) -> i32
-where
-    [(); DIM * (DIM + 1)]:,
-{
-    let input = input.as_bytes();
+unsafe fn inner_p2(input: &str) -> i32 {
+    let mut input = input.as_bytes().as_ptr();
 
     let mut antennae = [ArrayVec::<4, Index<DIM>>::new_unchecked(); ANTENNA_OPTS];
     let mut antinodes = [false; DIM * (DIM + 1)];
     let mut count = 0;
 
-    for y in 0..DIM as i8 {
-        for x in 0..DIM as i8 {
-            let index = Index::<DIM> { x, y };
-            let &c = input.get_unchecked(index.to());
-            if c == b'.' || c == EOL {
-                continue;
-            }
+    let zeroes = Simd::splat(ZERO);
 
-            debug!("Checking {}, count {count}", c as char);
-            let antennae = antennae.get_unchecked_mut((c - ZERO) as usize);
+    for y in 0..DIM {
+        let first_half = input.cast::<Simd<u8, 32>>().read_unaligned();
+        let second_half = ptr_add(input, SECOND_HALF_START as _)
+            .cast::<Simd<u8, 32>>()
+            .read_unaligned();
+        let mask = first_half.simd_ge(zeroes).to_bitmask()
+            | second_half
+                .simd_ge(zeroes)
+                .to_bitmask()
+                .unchecked_shl(SECOND_HALF_START as _);
+        debug!("Mask:\n{mask:050b}\n{}", {
+            let mut line = input.cast::<[u8; DIM]>().read_unaligned();
+            line.reverse();
+            str::from_utf8(&line).unwrap().to_owned()
+        });
+
+        for x in BitIter(mask) {
+            let pos = Index {
+                x: x as _,
+                y: y as _,
+            };
+            let c: u8 = *ptr_add(input, x);
+            debug!("Found char {c:x} ({}) at {pos:?}", c as char);
+            let antennae = antennae.get_unchecked_mut(c.unchecked_sub(ZERO) as usize);
 
             for &antenna in antennae.into_iter() {
-                let diff = index - antenna;
+                let diff = pos - antenna;
                 {
                     let mut index = antenna;
                     while let Some(pos) = index.checked_to() {
@@ -140,7 +153,7 @@ where
                     }
                 }
                 {
-                    let mut index = index;
+                    let mut index = pos;
                     while let Some(pos) = index.checked_to() {
                         let antinode = antinodes.get_unchecked_mut(pos);
                         count += !*antinode as i32;
@@ -150,25 +163,27 @@ where
                 }
             }
 
-            antennae.push_unchecked(index);
+            antennae.push_unchecked(pos);
         }
+
+        input = ptr_add(input, const { DIM + 1 } as _);
     }
 
-    debug!("Final map:\n{}", {
-        let mut s = String::new();
-        for (i, &c) in input.iter().enumerate() {
-            s.push(if antinodes[i] {
-                if c == b'.' {
-                    '+'
-                } else {
-                    '#'
-                }
-            } else {
-                c as char
-            })
-        }
-        s
-    });
+    // debug!("Final map:\n{}", {
+    //     let mut s = String::new();
+    //     for (i, &c) in input.iter().enumerate() {
+    //         s.push(if antinodes[i] {
+    //             if c == b'.' {
+    //                 '+'
+    //             } else {
+    //                 '#'
+    //             }
+    //         } else {
+    //             c as char
+    //         })
+    //     }
+    //     s
+    // });
 
     count
 }
