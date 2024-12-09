@@ -22,7 +22,7 @@ use std::{
     fmt::Debug,
     hash::Hash,
     hint::unreachable_unchecked,
-    intrinsics::{unchecked_div, unchecked_rem, unchecked_shl},
+    intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem, unchecked_shl},
     mem::MaybeUninit,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
@@ -274,14 +274,14 @@ where
     [T]: Hash,
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_slice().hash(state)
+        unsafe { self.as_slice() }.hash(state)
     }
 }
 
 impl<const N: usize, T> ArrayVec<N, T> {
     #[inline]
-    pub fn as_slice(&self) -> &[T] {
-        &self.inner[..self.len]
+    pub unsafe fn as_slice(&self) -> &[T] {
+        &self.inner.get_unchecked(..self.len)
     }
 
     #[inline]
@@ -338,7 +338,7 @@ impl<'a, const N: usize, T> IntoIterator for &'a ArrayVec<N, T> {
     type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.inner[..self.len].iter()
+        unsafe { self.inner.get_unchecked(..self.len).iter() }
     }
 }
 
@@ -374,29 +374,29 @@ macro_rules! index_n {
                 }
 
                 #[inline]
-                pub fn checked_to(self) -> Option<usize> {
+                pub unsafe fn checked_to(self) -> Option<usize> {
                     if self.x < 0 || self.y < 0 || self.x >= DIM as _ || self.y >= DIM as _ {
                         debug!("{self:?} is invalid");
                         None
                     } else {
-                        Some(self.y as usize * (DIM + 1) + self.x as usize)
+                        Some(unchecked_add(unchecked_mul(self.y as usize, const { DIM + 1 }), self.x as usize))
                     }
                 }
 
                 #[inline]
-                pub fn to(self) -> usize {
+                pub unsafe fn to(self) -> usize {
                     assume!(
                         self.x < DIM as _ && self.y < DIM as _,
                         "{self:?} is too large"
                     );
-                    max(self.y, 0) as usize * (DIM + 1) + max(self.x, 0) as usize
+                    unchecked_add(unchecked_mul(max(self.y, 0) as usize, (const { DIM + 1 })), max(self.x, 0) as usize)
                 }
 
                 #[inline]
-                pub fn fro(i: usize) -> Self {
+                pub unsafe fn fro(i: usize) -> Self {
                     Self {
-                        y: (i / (DIM + 1)) as _,
-                        x: (i % (DIM + 1)) as _,
+                        y: unchecked_div(i, (DIM + 1)) as _,
+                        x: unchecked_rem(i, (DIM + 1)) as _,
                     }
                 }
             }
@@ -406,9 +406,11 @@ macro_rules! index_n {
 
                 #[inline]
                 fn add(self, rhs: Self) -> Self::Output {
-                    Self {
-                        x: self.x + rhs.x,
-                        y: self.y + rhs.y,
+                    unsafe {
+                        Self {
+                            x: self.x.unchecked_add(rhs.x),
+                            y: self.y.unchecked_add(rhs.y),
+                        }
                     }
                 }
             }
@@ -416,8 +418,7 @@ macro_rules! index_n {
             impl<const DIM: usize> AddAssign for [<Index $typ:upper>]<DIM> {
                 #[inline]
                 fn add_assign(&mut self, rhs: Self) {
-                    self.x += rhs.x;
-                    self.y += rhs.y;
+                    *self = *self + rhs;
                 }
             }
 
@@ -425,9 +426,11 @@ macro_rules! index_n {
                 type Output = Self;
 
                 fn sub(self, rhs: Self) -> Self::Output {
-                    Self {
-                        x: self.x - rhs.x,
-                        y: self.y - rhs.y,
+                    unsafe {
+                        Self {
+                            x: self.x.unchecked_sub(rhs.x),
+                            y: self.y.unchecked_sub(rhs.y),
+                        }
                     }
                 }
             }
