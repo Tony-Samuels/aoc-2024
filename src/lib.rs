@@ -14,7 +14,8 @@
     maybe_uninit_uninit_array,
     never_type,
     portable_simd,
-    stmt_expr_attributes
+    stmt_expr_attributes,
+    unchecked_shifts
 )]
 use std::{
     cmp::max,
@@ -71,26 +72,37 @@ impl<const BYTES: usize> BigBitSet<BYTES> {
     }
 }
 
-pub struct BitIter(pub u128);
+macro_rules! bit_iter_n {
+    ($typ:ty) => {
+        paste::paste! {
+            pub struct [<BitIter $typ:upper>](pub $typ);
 
-impl Iterator for BitIter {
-    type Item = usize;
+            impl Iterator for [<BitIter $typ:upper>] {
+                type Item = usize;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-        unsafe fn inner(iter: &mut BitIter) -> Option<usize> {
-            if iter.0 == 0 {
-                None
-            } else {
-                let position = iter.0.trailing_zeros() as usize;
-                iter.0 &= iter.0.wrapping_sub(1);
-                Some(position)
+                fn next(&mut self) -> Option<Self::Item> {
+                    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+                    unsafe fn inner(iter: &mut [<BitIter $typ:upper>]) -> Option<usize> {
+                        if iter.0 == 0 {
+                            None
+                        } else {
+                            let position = iter.0.trailing_zeros() as usize;
+                            iter.0 &= iter.0.wrapping_sub(1);
+                            Some(position)
+                        }
+                    }
+
+                    unsafe { inner(self) }
+                }
             }
         }
-
-        unsafe { inner(self) }
-    }
+    };
+    ($($typ:ty),*) => {
+        $( bit_iter_n! { $typ })*
+    };
 }
+
+bit_iter_n! { u128, u64 }
 
 #[macro_export]
 macro_rules! debug {
@@ -342,84 +354,95 @@ where
 
 impl<const N: usize, T> Eq for ArrayVec<N, T> where T: Eq {}
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Index<const DIM: usize> {
-    y: i8,
-    x: i8,
-}
+macro_rules! index_n {
+    ($typ:ty) => {
+        paste::paste! {
+            #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+            pub struct [<Index $typ:upper>]<const DIM: usize> {
+                y: $typ,
+                x: $typ,
+            }
 
-impl<const DIM: usize> Index<DIM> {
-    #[inline]
-    pub fn x(x: i8) -> Self {
-        Self { x, y: 0 }
-    }
+            impl<const DIM: usize> [<Index $typ:upper>]<DIM> {
+                #[inline]
+                pub fn x(x: $typ) -> Self {
+                    Self { x, y: 0 }
+                }
 
-    #[inline]
-    pub fn y(y: i8) -> Self {
-        Self { x: 0, y }
-    }
+                #[inline]
+                pub fn y(y: $typ) -> Self {
+                    Self { x: 0, y }
+                }
 
-    #[inline]
-    pub fn checked_to(self) -> Option<usize> {
-        if self.x < 0 || self.y < 0 || self.x >= DIM as _ || self.y >= DIM as _ {
-            debug!("{self:?} is invalid");
-            None
-        } else {
-            Some(self.y as usize * (DIM + 1) + self.x as usize)
+                #[inline]
+                pub fn checked_to(self) -> Option<usize> {
+                    if self.x < 0 || self.y < 0 || self.x >= DIM as _ || self.y >= DIM as _ {
+                        debug!("{self:?} is invalid");
+                        None
+                    } else {
+                        Some(self.y as usize * (DIM + 1) + self.x as usize)
+                    }
+                }
+
+                #[inline]
+                pub fn to(self) -> usize {
+                    assume!(
+                        self.x < DIM as _ && self.y < DIM as _,
+                        "{self:?} is too large"
+                    );
+                    max(self.y, 0) as usize * (DIM + 1) + max(self.x, 0) as usize
+                }
+
+                #[inline]
+                pub fn fro(i: usize) -> Self {
+                    Self {
+                        y: (i / (DIM + 1)) as _,
+                        x: (i % (DIM + 1)) as _,
+                    }
+                }
+            }
+
+            impl<const DIM: usize> Add for [<Index $typ:upper>]<DIM> {
+                type Output = Self;
+
+                #[inline]
+                fn add(self, rhs: Self) -> Self::Output {
+                    Self {
+                        x: self.x + rhs.x,
+                        y: self.y + rhs.y,
+                    }
+                }
+            }
+
+            impl<const DIM: usize> AddAssign for [<Index $typ:upper>]<DIM> {
+                #[inline]
+                fn add_assign(&mut self, rhs: Self) {
+                    self.x += rhs.x;
+                    self.y += rhs.y;
+                }
+            }
+
+            impl<const DIM: usize> Sub for [<Index $typ:upper>]<DIM> {
+                type Output = Self;
+
+                fn sub(self, rhs: Self) -> Self::Output {
+                    Self {
+                        x: self.x - rhs.x,
+                        y: self.y - rhs.y,
+                    }
+                }
+            }
+
+            impl<const DIM: usize> SubAssign for [<Index $typ:upper>]<DIM> {
+                fn sub_assign(&mut self, rhs: Self) {
+                    *self = *self - rhs;
+                }
+            }
         }
-    }
-
-    #[inline]
-    pub fn to(self) -> usize {
-        assume!(
-            self.x < DIM as _ && self.y < DIM as _,
-            "{self:?} is too large"
-        );
-        max(self.y, 0) as usize * (DIM + 1) + max(self.x, 0) as usize
-    }
-
-    #[inline]
-    pub fn fro(i: usize) -> Self {
-        Self {
-            y: (i / (DIM + 1)) as _,
-            x: (i % (DIM + 1)) as _,
-        }
-    }
+    };
+    ($($typ:ty),*) => {
+        $( index_n! { $typ })*
+    };
 }
 
-impl<const DIM: usize> Add for Index<DIM> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
-    }
-}
-
-impl<const DIM: usize> AddAssign for Index<DIM> {
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        self.x += rhs.x;
-        self.y += rhs.y;
-    }
-}
-
-impl<const DIM: usize> Sub for Index<DIM> {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
-    }
-}
-
-impl<const DIM: usize> SubAssign for Index<DIM> {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
-    }
-}
+index_n! { i8 }
