@@ -1,6 +1,6 @@
 use aoc_runner_derive::aoc;
 
-use crate::{debug, BitIter};
+use crate::{debug, BitIterU128 as BitIter};
 
 const ZERO: u8 = b'0';
 const ZERO_ZERO: u16 = ZERO as u16 * 0x0101;
