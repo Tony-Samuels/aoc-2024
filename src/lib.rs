@@ -151,22 +151,30 @@ macro_rules! assume {
 #[macro_export]
 macro_rules! p {
     ($typ:ty, $n1:expr) => {{
+        use std::intrinsics::unchecked_sub;
+
         debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
+
         unchecked_sub($n1, b'0') as $typ
     }};
     ($typ:ty, $n10:expr, $n1:expr) => {{
+        use std::intrinsics::{unchecked_add, unchecked_mul, unchecked_sub};
+
         debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
         debug_assert!(
             $n10.is_ascii_digit(),
             "Expected 0-9, found {}",
             $n10 as char
         );
-        unchecked_add(
-            unchecked_mul(unchecked_sub($n10, b'0'), 10),
-            unchecked_sub($n1, b'0'),
-        ) as $typ
+
+        unchecked_sub(
+            unchecked_add(unchecked_mul($n10 as $typ, 10), $n1 as $typ),
+            $crate::ZERO as $typ * 11,
+        )
     }};
     ($typ:ty, $n100:expr, $n10:expr, $n1:expr) => {{
+        use std::intrinsics::{unchecked_add, unchecked_mul, unchecked_sub};
+
         debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
         debug_assert!(
             $n10.is_ascii_digit(),
@@ -178,15 +186,18 @@ macro_rules! p {
             "Expected 0-9, found {}",
             $n100 as char
         );
-        unchecked_add(
-            unchecked_mul(unchecked_sub($n100, b'0') as $typ, 100),
+
+        unchecked_sub(
             unchecked_add(
-                unchecked_mul(unchecked_sub($n10, b'0'), 10),
-                unchecked_sub($n1, b'0'),
-            ) as $typ,
+                unchecked_mul($n100 as $typ, 100),
+                unchecked_add(unchecked_mul($n10 as $typ, 10), $n1 as $typ) as $typ,
+            ),
+            $crate::ZERO as $typ * 111,
         )
     }};
     ($typ:ty, $n1_000:expr, $n100:expr, $n10:expr, $n1:expr) => {{
+        use std::intrinsics::{unchecked_add, unchecked_mul, unchecked_sub};
+
         debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
         debug_assert!(
             $n10.is_ascii_digit(),
@@ -203,18 +214,21 @@ macro_rules! p {
             "Expected 0-9, found {}",
             $n1_000 as char
         );
-        unchecked_add(
-            unchecked_mul(unchecked_sub($n1_000, b'0') as $typ, 1_000),
+
+        unchecked_sub(
             unchecked_add(
-                unchecked_mul(unchecked_sub($n100, b'0') as $typ, 100),
+                unchecked_mul($n1_000 as $typ, 1_000),
                 unchecked_add(
-                    unchecked_mul(unchecked_sub($n10, b'0'), 10),
-                    unchecked_sub($n1, b'0'),
-                ) as $typ,
+                    unchecked_mul($n100 as $typ, 100),
+                    unchecked_add(unchecked_mul($n10 as $typ, 10), $n1 as $typ) as $typ,
+                ),
             ),
+            $crate::ZERO as $typ * 1_111,
         )
     }};
     ($typ:ty, $n10_000:expr, $n1_000:expr, $n100:expr, $n10:expr, $n1:expr) => {{
+        use std::intrinsics::{unchecked_add, unchecked_mul, unchecked_sub};
+
         debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
         debug_assert!(
             $n10.is_ascii_digit(),
@@ -236,18 +250,19 @@ macro_rules! p {
             "Expected 0-9, found {}",
             $n10_000 as char
         );
-        unchecked_add(
-            unchecked_mul(unchecked_sub($n10_000, b'0') as $typ, 10_000),
+
+        unchecked_sub(
             unchecked_add(
-                unchecked_mul(unchecked_sub($n1_000, b'0') as $typ, 1_000),
+                unchecked_mul($n10_000 as $typ, 10_000),
                 unchecked_add(
-                    unchecked_mul(unchecked_sub($n100, b'0') as $typ, 100),
+                    unchecked_mul($n1_000 as $typ, 1_000),
                     unchecked_add(
-                        unchecked_mul(unchecked_sub($n10, b'0'), 10),
-                        unchecked_sub($n1, b'0'),
-                    ) as $typ,
+                        unchecked_mul($n100 as $typ, 100),
+                        unchecked_add(unchecked_mul($n10 as $typ, 10), $n1 as $typ) as $typ,
+                    ),
                 ),
             ),
+            $crate::ZERO as $typ * 11_111,
         )
     }};
 }
