@@ -1,8 +1,8 @@
-use std::intrinsics::{unchecked_div, unchecked_rem};
+use std::intrinsics::{unchecked_add, unchecked_div, unchecked_rem, unchecked_shr};
 
 use aoc_runner_derive::aoc;
 
-use crate::{assume, debug, p, Assume, Unreachable};
+use crate::{assume, debug, p, ZERO};
 
 const BUTTON_FIRST_NUM_OFFSET: usize = 12;
 const SECOND_NUM_OFFSET: usize = 4;
@@ -31,26 +31,48 @@ unsafe fn calc_cost(a_x: i64, a_y: i64, b_x: i64, b_y: i64, target_x: i64, targe
     i.unchecked_add(j.unchecked_mul(3))
 }
 
+unsafe fn swar(s: [u8; 8]) -> i64 {
+    const ALL_0: u64 = 0x3030303030303030;
+    const MASK: u64 = 0x000000FF000000FF;
+    const MUL1: u64 = 0x000F424000000064;
+    const MUL2: u64 = 0x0000271000000001;
+
+    debug!(
+        "{:?}",
+        s.iter().copied().map(char::from).collect::<Vec<_>>()
+    );
+    let mut val = u64::from_ne_bytes(s);
+    val = val.unchecked_sub(ALL_0);
+    debug!("{:?}", val.to_ne_bytes());
+    val = val.wrapping_mul(10).unchecked_add(val.unchecked_shr(8));
+    val = unchecked_shr(
+        unchecked_add(
+            (val & MASK).wrapping_mul(MUL1),
+            (val.unchecked_shr(16) & MASK).wrapping_mul(MUL2),
+        ),
+        32,
+    );
+
+    val as i64
+}
+
 unsafe fn read_target(input: &[u8], pos: usize) -> (i64, usize) {
+    let input = input.get_unchecked(pos..);
     debug!(
         "Reading line: {}",
-        std::str::from_utf8(&input[pos..])
-            .unwrap()
-            .lines()
-            .next()
-            .unwrap()
+        std::str::from_utf8(&input).unwrap().lines().next().unwrap()
     );
-    match *input.get_unchecked(pos..) {
-        [n10_000 @ b'0'..=b'9', n1_000 @ b'0'..=b'9', n100 @ b'0'..=b'9', n10 @ b'0'..=b'9', n1 @ b'0'..=b'9', ..] => {
-            (p!(i64, n10_000, n1_000, n100, n10, n1), 5)
+    if input.get_unchecked(3).is_ascii_digit() {
+        if input.get_unchecked(4).is_ascii_digit() {
+            let [n1, n2, n3, n4, n5] = input.as_ptr().cast::<[u8; _]>().read_unaligned();
+            (swar([ZERO, ZERO, ZERO, n1, n2, n3, n4, n5]), 5)
+        } else {
+            let [n1, n2, n3, n4] = input.as_ptr().cast::<[u8; _]>().read_unaligned();
+            (swar([ZERO, ZERO, ZERO, ZERO, n1, n2, n3, n4]), 4)
         }
-        [n1_000 @ b'0'..=b'9', n100 @ b'0'..=b'9', n10 @ b'0'..=b'9', n1 @ b'0'..=b'9', ..] => {
-            (p!(i64, n1_000, n100, n10, n1), 4)
-        }
-        [n100 @ b'0'..=b'9', n10 @ b'0'..=b'9', n1 @ b'0'..=b'9', ..] => {
-            (p!(i64, n100, n10, n1), 3)
-        }
-        _ => Unreachable.assume(),
+    } else {
+        let [n1, n2, n3] = input.as_ptr().cast::<[u8; _]>().read_unaligned();
+        (swar([ZERO, ZERO, ZERO, ZERO, ZERO, n1, n2, n3]), 3)
     }
 }
 
