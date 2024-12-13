@@ -19,16 +19,16 @@ unsafe fn calc_cost(a_x: i64, a_y: i64, b_x: i64, b_y: i64, target_x: i64, targe
         .unchecked_mul(target_x)
         .unchecked_sub(b_x.unchecked_mul(target_y));
 
-    if unchecked_rem(num1, denom) != 0 || unchecked_rem(num2, denom) != 0 {
-        return 0;
-    }
+    let a_presses = unchecked_div(num1, denom);
+    let a_div_cleanly = unchecked_rem(num1, denom) == 0;
+    assume!(a_presses >= 0 || !a_div_cleanly);
+    let b_presses = unchecked_div(num2, denom);
+    let b_div_cleanly = unchecked_rem(num2, denom) == 0;
+    assume!(b_presses >= 0 || !b_div_cleanly);
 
-    let i = unchecked_div(num1, denom);
-    assume!(i >= 0);
-    let j = unchecked_div(num2, denom);
-    assume!(j >= 0);
-
-    i.unchecked_add(j.unchecked_mul(3))
+    a_presses
+        .unchecked_add(b_presses.unchecked_mul(3))
+        .unchecked_mul((a_div_cleanly && b_div_cleanly) as _)
 }
 
 unsafe fn read_target(input: &[u8], pos: usize) -> (i64, usize) {
