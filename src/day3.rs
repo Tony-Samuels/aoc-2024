@@ -1,3 +1,5 @@
+use std::intrinsics::{unchecked_add, unchecked_mul, unchecked_sub};
+
 use aoc_runner_derive::aoc;
 use memchr::{arch::all::packedpair::HeuristicFrequencyRank, memmem::FinderBuilder, Memchr};
 
@@ -34,7 +36,7 @@ unsafe fn inner_part1(input: &[u8]) -> u32 {
 
     debug!("Match counts: {}", iter.clone().count());
     for partial_match_pos in iter {
-        match &input[partial_match_pos + 1..] {
+        match input[partial_match_pos + 1..] {
             [b'l', b'(', num1 @ b'0'..=b'9', b',', num2 @ b'0'..=b'9', b')', ..] => {
                 sum += p!(u32, num1) * p!(u32, num2);
             }

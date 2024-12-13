@@ -1,9 +1,8 @@
-use std::intrinsics::{unchecked_div, unchecked_rem};
+use std::intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
 
 use aoc_runner_derive::aoc;
-use atoi_simd::parse_any_pos;
 
-use crate::{assume, debug, p, Assume};
+use crate::{assume, debug, p, Assume, Unreachable};
 
 const BUTTON_FIRST_NUM_OFFSET: usize = 12;
 const SECOND_NUM_OFFSET: usize = 4;
@@ -32,6 +31,29 @@ unsafe fn calc_cost(a_x: i64, a_y: i64, b_x: i64, b_y: i64, target_x: i64, targe
     i + 3 * j
 }
 
+unsafe fn read_target(input: &[u8], pos: usize) -> (i64, usize) {
+    debug!(
+        "Reading line: {}",
+        std::str::from_utf8(&input[pos..])
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap()
+    );
+    match *input.get_unchecked(pos..) {
+        [n10_000 @ b'0'..=b'9', n1_000 @ b'0'..=b'9', n100 @ b'0'..=b'9', n10 @ b'0'..=b'9', n1 @ b'0'..=b'9', ..] => {
+            (p!(i64, n10_000, n1_000, n100, n10, n1), 5)
+        }
+        [n1_000 @ b'0'..=b'9', n100 @ b'0'..=b'9', n10 @ b'0'..=b'9', n1 @ b'0'..=b'9', ..] => {
+            (p!(i64, n1_000, n100, n10, n1), 4)
+        }
+        [n100 @ b'0'..=b'9', n10 @ b'0'..=b'9', n1 @ b'0'..=b'9', ..] => {
+            (p!(i64, n100, n10, n1), 3)
+        }
+        _ => Unreachable.assume(),
+    }
+}
+
 #[aoc(day13, part1)]
 pub fn part1(input: &str) -> i64 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
@@ -42,35 +64,35 @@ pub fn part1(input: &str) -> i64 {
 
         while input.len() > pos + 2 {
             pos += BUTTON_FIRST_NUM_OFFSET;
-            debug!(
-                "Reading line: {}",
-                std::str::from_utf8(&input[pos..])
-                    .unwrap()
-                    .lines()
-                    .next()
-                    .unwrap()
+            let a_x = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
             );
-            let a_x = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
             pos += SECOND_NUM_OFFSET + 2;
-            let a_y = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
+            let a_y = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
+            );
 
             pos += 3 + BUTTON_FIRST_NUM_OFFSET;
-            debug!(
-                "Reading line: {}",
-                std::str::from_utf8(&input[pos..])
-                    .unwrap()
-                    .lines()
-                    .next()
-                    .unwrap()
+            let b_x = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
             );
-            let b_x = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
             pos += SECOND_NUM_OFFSET + 2;
-            let b_y = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
+            let b_y = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
+            );
 
             pos += 3 + PRIZE_FIRST_NUM_OFFSET;
-            let (target_x, offset) = parse_any_pos::<i64>(input.get_unchecked(pos..)).assume();
+            let (target_x, offset) = read_target(input, pos);
             pos += SECOND_NUM_OFFSET + offset;
-            let (target_y, offset) = parse_any_pos::<i64>(input.get_unchecked(pos..)).assume();
+            let (target_y, offset) = read_target(input, pos);
             pos += 2 + offset;
 
             sum += calc_cost(a_x, a_y, b_x, b_y, target_x, target_y);
@@ -91,19 +113,35 @@ pub fn part2(input: &str) -> i64 {
 
         while input.len() > pos + 2 {
             pos += BUTTON_FIRST_NUM_OFFSET;
-            let a_x = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
+            let a_x = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
+            );
             pos += SECOND_NUM_OFFSET + 2;
-            let a_y = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
+            let a_y = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
+            );
 
             pos += 3 + BUTTON_FIRST_NUM_OFFSET;
-            let b_x = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
+            let b_x = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
+            );
             pos += SECOND_NUM_OFFSET + 2;
-            let b_y = p!(i64, input.get_unchecked(pos), input.get_unchecked(pos + 1));
+            let b_y = p!(
+                i64,
+                *input.get_unchecked(pos),
+                *input.get_unchecked(pos + 1)
+            );
 
             pos += 3 + PRIZE_FIRST_NUM_OFFSET;
-            let (target_x, offset) = parse_any_pos::<i64>(input.get_unchecked(pos..)).assume();
+            let (target_x, offset) = read_target(input, pos);
             pos += SECOND_NUM_OFFSET + offset;
-            let (target_y, offset) = parse_any_pos::<i64>(input.get_unchecked(pos..)).assume();
+            let (target_y, offset) = read_target(input, pos);
             pos += 2 + offset;
 
             let target_x = target_x.unchecked_add(10_000_000_000_000);
