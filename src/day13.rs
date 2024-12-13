@@ -72,7 +72,7 @@ unsafe fn read_target(input: &[u8], pos: usize) -> (i64, usize) {
         }
     } else {
         let [n1, n2, n3] = input.as_ptr().cast::<[u8; _]>().read_unaligned();
-        (swar([ZERO, ZERO, ZERO, ZERO, ZERO, n1, n2, n3]), 3)
+        (p!(i64, n1, n2, n3), 3)
     }
 }
 
