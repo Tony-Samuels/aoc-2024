@@ -150,15 +150,106 @@ macro_rules! assume {
 
 #[macro_export]
 macro_rules! p {
-    ($typ:ty, $num:expr) => {
-        ($num - b'0') as $typ
-    };
-    ($typ:ty, $tens:expr, $units:expr) => {
-        (($tens - b'0') * 10 + $units - b'0') as $typ
-    };
-    ($typ:ty, $hundreds:expr, $tens:expr, $units:expr) => {
-        (($hundreds - b'0') as $typ * 100 + ($tens - b'0') as $typ * 10 + ($units - b'0') as $typ)
-    };
+    ($typ:ty, $n1:expr) => {{
+        debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
+        unchecked_sub($n1, b'0') as $typ
+    }};
+    ($typ:ty, $n10:expr, $n1:expr) => {{
+        debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
+        debug_assert!(
+            $n10.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n10 as char
+        );
+        unchecked_add(
+            unchecked_mul(unchecked_sub($n10, b'0'), 10),
+            unchecked_sub($n1, b'0'),
+        ) as $typ
+    }};
+    ($typ:ty, $n100:expr, $n10:expr, $n1:expr) => {{
+        debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
+        debug_assert!(
+            $n10.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n10 as char
+        );
+        debug_assert!(
+            $n100.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n100 as char
+        );
+        unchecked_add(
+            unchecked_mul(unchecked_sub($n100, b'0') as $typ, 100),
+            unchecked_add(
+                unchecked_mul(unchecked_sub($n10, b'0'), 10),
+                unchecked_sub($n1, b'0'),
+            ) as $typ,
+        )
+    }};
+    ($typ:ty, $n1_000:expr, $n100:expr, $n10:expr, $n1:expr) => {{
+        debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
+        debug_assert!(
+            $n10.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n10 as char
+        );
+        debug_assert!(
+            $n100.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n100 as char
+        );
+        debug_assert!(
+            $n1_000.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n1_000 as char
+        );
+        unchecked_add(
+            unchecked_mul(unchecked_sub($n1_000, b'0') as $typ, 1_000),
+            unchecked_add(
+                unchecked_mul(unchecked_sub($n100, b'0') as $typ, 100),
+                unchecked_add(
+                    unchecked_mul(unchecked_sub($n10, b'0'), 10),
+                    unchecked_sub($n1, b'0'),
+                ) as $typ,
+            ),
+        )
+    }};
+    ($typ:ty, $n10_000:expr, $n1_000:expr, $n100:expr, $n10:expr, $n1:expr) => {{
+        debug_assert!($n1.is_ascii_digit(), "Expected 0-9, found {}", $n1 as char);
+        debug_assert!(
+            $n10.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n10 as char
+        );
+        debug_assert!(
+            $n100.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n100 as char
+        );
+        debug_assert!(
+            $n1_000.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n1_000 as char
+        );
+        debug_assert!(
+            $n10_000.is_ascii_digit(),
+            "Expected 0-9, found {}",
+            $n10_000 as char
+        );
+        unchecked_add(
+            unchecked_mul(unchecked_sub($n10_000, b'0') as $typ, 10_000),
+            unchecked_add(
+                unchecked_mul(unchecked_sub($n1_000, b'0') as $typ, 1_000),
+                unchecked_add(
+                    unchecked_mul(unchecked_sub($n100, b'0') as $typ, 100),
+                    unchecked_add(
+                        unchecked_mul(unchecked_sub($n10, b'0'), 10),
+                        unchecked_sub($n1, b'0'),
+                    ) as $typ,
+                ),
+            ),
+        )
+    }};
 }
 
 pub trait Assume: Sized {
@@ -282,7 +373,7 @@ where
 impl<const N: usize, T> ArrayVec<N, T> {
     #[inline]
     pub unsafe fn as_slice(&self) -> &[T] {
-        &self.inner.get_unchecked(..self.len)
+        self.inner.get_unchecked(..self.len)
     }
 
     #[inline]
