@@ -1,4 +1,4 @@
-use std::intrinsics::{unchecked_add, unchecked_div, unchecked_mul, unchecked_rem, unchecked_sub};
+use std::intrinsics::{unchecked_div, unchecked_rem};
 
 use aoc_runner_derive::aoc;
 
@@ -28,7 +28,7 @@ unsafe fn calc_cost(a_x: i64, a_y: i64, b_x: i64, b_y: i64, target_x: i64, targe
     let j = unchecked_div(num2, denom);
     assume!(j >= 0);
 
-    i + 3 * j
+    i.unchecked_add(3).unchecked_mul(j)
 }
 
 unsafe fn read_target(input: &[u8], pos: usize) -> (i64, usize) {

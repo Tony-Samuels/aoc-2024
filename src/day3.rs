@@ -1,5 +1,3 @@
-use std::intrinsics::{unchecked_add, unchecked_mul, unchecked_sub};
-
 use aoc_runner_derive::aoc;
 use memchr::{arch::all::packedpair::HeuristicFrequencyRank, memmem::FinderBuilder, Memchr};
 
