@@ -210,7 +210,7 @@ pub fn part2(input: &str) -> i32 {
         let mut y_timestep = 0;
 
         'outer: for timestep in 0..WIDTH {
-            let mut arr = [0; WIDTH as _];
+            let mut arr = [0u8; WIDTH as _];
 
             for robot in ROBOTS {
                 *arr.get_unchecked_mut(robot.x_at::<WIDTH>(timestep) as usize) += 1;
@@ -227,7 +227,7 @@ pub fn part2(input: &str) -> i32 {
         }
 
         'outer: for timestep in 0..HEIGHT {
-            let mut arr = [0; HEIGHT as _];
+            let mut arr = [0u8; HEIGHT as _];
 
             for robot in ROBOTS {
                 *arr.get_unchecked_mut(robot.y_at::<HEIGHT>(timestep) as usize) += 1;
