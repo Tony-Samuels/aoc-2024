@@ -209,36 +209,34 @@ pub fn part2(input: &str) -> i32 {
         let mut x_timestep = 0;
         let mut y_timestep = 0;
 
-        'outer: for timestep in 0..WIDTH {
-            let mut arr = [0u8; WIDTH as _];
+        'outer: for timestep in 0..HEIGHT {
+            let mut width = [0u8; WIDTH as _];
+            let mut height = [0u8; HEIGHT as _];
 
             for robot in ROBOTS {
-                *arr.get_unchecked_mut(robot.x_at::<WIDTH>(timestep) as usize) += 1;
+                *width.get_unchecked_mut(robot.x_at::<WIDTH>(timestep) as usize) += 1;
+                *height.get_unchecked_mut(robot.y_at::<HEIGHT>(timestep) as usize) += 1;
             }
 
-            for x in 0..WIDTH - 30 {
-                if *arr.get_unchecked(x as usize) >= 33
-                    && *arr.get_unchecked(x.unchecked_add(30) as usize) >= 33
+            for idx in 0..71 {
+                if *width.get_unchecked(idx) >= 33
+                    && *width.get_unchecked(idx.unchecked_add(30)) >= 33
                 {
                     x_timestep = timestep;
-                    break 'outer;
+
+                    if y_timestep != 0 {
+                        break 'outer;
+                    }
                 }
-            }
-        }
 
-        'outer: for timestep in 0..HEIGHT {
-            let mut arr = [0u8; HEIGHT as _];
-
-            for robot in ROBOTS {
-                *arr.get_unchecked_mut(robot.y_at::<HEIGHT>(timestep) as usize) += 1;
-            }
-
-            for y in 0..HEIGHT - 32 {
-                if *arr.get_unchecked(y as usize) >= 31
-                    && *arr.get_unchecked(y.unchecked_add(32) as usize) >= 31
+                if *height.get_unchecked(idx) >= 31
+                    && *height.get_unchecked(idx.unchecked_add(32)) >= 31
                 {
                     y_timestep = timestep;
-                    break 'outer;
+
+                    if x_timestep != 0 {
+                        break 'outer;
+                    }
                 }
             }
         }
