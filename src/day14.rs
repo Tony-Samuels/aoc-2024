@@ -253,6 +253,9 @@ pub fn part2(input: &str) -> i32 {
         let y_factor = WIDTH.unchecked_mul(y_timestep);
         let factor = x_factor.unchecked_sub(y_factor);
         let factor = const { WIDTH * HEIGHT }
+            .unchecked_mul((factor < 0) as _)
+            .unchecked_add(factor);
+        let factor = const { WIDTH * HEIGHT }
             .unchecked_mul(factor % 2)
             .unchecked_add(factor);
 
