@@ -3,7 +3,7 @@ use std::simd::{cmp::SimdPartialOrd as _, Simd};
 
 use aoc_runner_derive::aoc;
 
-use crate::{debug, ArrayVec, BigBitSet, BitIterU64 as BitIter, IndexI8 as Index, ZERO};
+use crate::{debug, ptr_add, ArrayVec, BigBitSet, BitIterU64 as BitIter, IndexI8 as Index, ZERO};
 
 const ANTENNA_OPTS: usize = (b'z' - b'0' + 1) as usize;
 const _: () = {
@@ -18,11 +18,6 @@ pub fn part1(input: &str) -> i32 {
 
 const DIM: usize = 50;
 const SECOND_HALF_START: usize = 50 - 32;
-
-#[inline]
-unsafe fn ptr_add(ptr: *const u8, val: usize) -> *const u8 {
-    (ptr as usize).unchecked_add(val) as _
-}
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner_p1(input: &str) -> i32 {

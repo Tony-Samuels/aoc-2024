@@ -31,6 +31,7 @@ use aoc_runner_derive::aoc_lib;
 
 pub mod day1;
 pub mod day13;
+pub mod day14;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -43,6 +44,11 @@ aoc_lib! { year = 2024 }
 
 pub const ZERO: u8 = b'0';
 pub const EOL: u8 = b'\n';
+
+#[inline]
+unsafe fn ptr_add(ptr: *const u8, val: usize) -> *const u8 {
+    (ptr as usize).unchecked_add(val) as _
+}
 
 pub struct BigBitSet<const BYTES: usize>([u8; BYTES]);
 

@@ -55,6 +55,11 @@ name = "rank3"
 test = false
 bench = false
 
+[[bin]]
+name = "lut14"
+test = false
+bench = false
+
 [dev-dependencies]
 criterion = { package = "codspeed-criterion-compat", version = "2" }
 indoc = "2"
