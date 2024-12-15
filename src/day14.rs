@@ -216,13 +216,15 @@ pub fn part2(input: &str) -> i32 {
         'outer: for timestep in 0..WIDTH {
             let mut arr = [0u8; WIDTH as _];
 
-            for (&x, &dx) in ROBOT_X.iter().zip(ROBOT_DX.iter()) {
-                let x = timestep
-                    .unchecked_mul(dx as i32)
-                    .unchecked_add(x as i32)
-                    .checked_rem_euclid(WIDTH)
-                    .unwrap_or_else(|| Unreachable.assume());
-                *arr.get_unchecked_mut(x as usize) += 1;
+            for (x, dx) in ROBOT_X.chunks(32).zip(ROBOT_DX.chunks(32)) {
+                for (&x, &dx) in x.iter().zip(dx) {
+                    let x = timestep
+                        .unchecked_mul(dx as i32)
+                        .unchecked_add(x as i32)
+                        .checked_rem_euclid(WIDTH)
+                        .unwrap_or_else(|| Unreachable.assume());
+                    *arr.get_unchecked_mut(x as usize) += 1;
+                }
             }
 
             for x in 0..WIDTH - 30 {
@@ -238,13 +240,15 @@ pub fn part2(input: &str) -> i32 {
         'outer: for timestep in 0..HEIGHT {
             let mut arr = [0u8; HEIGHT as _];
 
-            for (&y, &dy) in ROBOT_Y.iter().zip(ROBOT_DY.iter()) {
-                let y = timestep
-                    .unchecked_mul(dy as i32)
-                    .unchecked_add(y as i32)
-                    .checked_rem_euclid(HEIGHT)
-                    .unwrap_or_else(|| Unreachable.assume());
-                *arr.get_unchecked_mut(y as usize) += 1;
+            for (y, dy) in ROBOT_Y.chunks(32).zip(ROBOT_DY.chunks(32)) {
+                for (&y, &dy) in y.iter().zip(dy) {
+                    let y = timestep
+                        .unchecked_mul(dy as i32)
+                        .unchecked_add(y as i32)
+                        .checked_rem_euclid(HEIGHT)
+                        .unwrap_or_else(|| Unreachable.assume());
+                    *arr.get_unchecked_mut(y as usize) += 1;
+                }
             }
 
             for y in 0..HEIGHT - 32 {
