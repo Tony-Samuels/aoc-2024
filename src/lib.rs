@@ -10,6 +10,7 @@
     generic_const_exprs,
     generic_arg_infer,
     inline_const_pat,
+    iter_array_chunks,
     maybe_uninit_array_assume_init,
     maybe_uninit_uninit_array,
     never_type,

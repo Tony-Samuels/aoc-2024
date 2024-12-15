@@ -1,5 +1,10 @@
 #![allow(unused, unused_variables, unused_mut, unused_imports)]
-use std::{cmp::Ordering, intrinsics::unchecked_rem, mem::transmute, simd::u8x16};
+use std::{
+    cmp::Ordering,
+    intrinsics::unchecked_rem,
+    mem::transmute,
+    simd::{u8x16, Simd},
+};
 
 use aoc_runner_derive::aoc;
 
@@ -142,13 +147,12 @@ unsafe fn inner_p1<const INPUT_LINES: usize, const WIDTH: i32, const HEIGHT: i32
     quadrants[0] * quadrants[1] * quadrants[2] * quadrants[3]
 }
 
-static mut ROBOTS: [Robot; 500] = [Robot {
-    x: 0,
-    y: 0,
-    dx: 0,
-    dy: 0,
-}; 500];
+static mut ROBOT_X: [i8; 500] = [0; 500];
+static mut ROBOT_DX: [i8; 500] = [0; 500];
+static mut ROBOT_Y: [i8; 500] = [0; 500];
+static mut ROBOT_DY: [i8; 500] = [0; 500];
 
+#[inline(never)]
 unsafe fn parse_robots(input: &str) {
     let input = input.as_bytes();
     let mut pos = 1;
@@ -156,17 +160,19 @@ unsafe fn parse_robots(input: &str) {
     for n in 0..499 {
         let x = parse_num(input, pos);
         pos = pos.unchecked_add(len(x)).unchecked_add(1);
+        *ROBOT_X.get_unchecked_mut(n) = x;
 
         let y = parse_num(input, pos);
         pos = pos.unchecked_add(len(y)).unchecked_add(3);
+        *ROBOT_Y.get_unchecked_mut(n) = y;
 
         let dx = parse_num(input, pos);
         pos = pos.unchecked_add(len(dx)).unchecked_add(1);
+        *ROBOT_DX.get_unchecked_mut(n) = dx;
 
         let dy = parse_num(input, pos);
         pos = pos.unchecked_add(len(dy)).unchecked_add(3);
-
-        *ROBOTS.get_unchecked_mut(n) = Robot { x, y, dx, dy };
+        *ROBOT_DY.get_unchecked_mut(n) = dy;
     }
 
     crate::debug!(
@@ -178,12 +184,15 @@ unsafe fn parse_robots(input: &str) {
     {
         let x = parse_num(input, pos);
         pos = pos.unchecked_add(len(x)).unchecked_add(1);
+        *ROBOT_X.get_unchecked_mut(499) = x;
 
         let y = parse_num(input, pos);
         pos = pos.unchecked_add(len(y)).unchecked_add(3);
+        *ROBOT_Y.get_unchecked_mut(499) = y;
 
         let dx = parse_num(input, pos);
         pos = pos.unchecked_add(len(dx)).unchecked_add(1);
+        *ROBOT_DX.get_unchecked_mut(499) = dx;
 
         let index = u32::from_ne_bytes([
             *input.get(pos.unchecked_add(3)).unwrap_or(&0),
@@ -192,8 +201,7 @@ unsafe fn parse_robots(input: &str) {
             0,
         ]);
         let dy = *LUT.get_unchecked(index as usize);
-
-        *ROBOTS.get_unchecked_mut(499) = Robot { x, y, dx, dy };
+        *ROBOT_DY.get_unchecked_mut(499) = dy;
     }
 }
 
@@ -201,26 +209,53 @@ unsafe fn parse_robots(input: &str) {
 pub fn part2(input: &str) -> i32 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn inner(input: &str) -> i32 {
-        const WIDTH: i32 = 101;
-        const HEIGHT: i32 = 103;
+        const WIDTH: i16 = 101;
+        const HEIGHT: i16 = 103;
 
         parse_robots(input);
 
         let mut x_timestep = 0;
         let mut y_timestep = 0;
 
+        let simd_width = Simd::splat(WIDTH);
+        let simd_height = Simd::splat(HEIGHT);
+
         'outer: for timestep in 0..WIDTH {
             let mut arr = [0u8; WIDTH as _];
 
-            for robot in ROBOTS {
-                *arr.get_unchecked_mut(robot.x_at::<WIDTH>(timestep) as usize) += 1;
+            let simd_timestep = Simd::splat(timestep);
+            let mut iter_x = ROBOT_X.iter().copied().map(i16::from).array_chunks::<16>();
+            let mut iter_dx = ROBOT_DX.iter().copied().map(i16::from).array_chunks::<16>();
+
+            for (x, dx) in (&mut iter_x).zip(&mut iter_dx) {
+                let x = Simd::from_array(x);
+                let dx = Simd::from_array(dx);
+
+                let positions = (dx * simd_timestep + x) % simd_width;
+
+                for &x in positions.as_array() {
+                    crate::debug!("{x}");
+                    let x = x.rem_euclid(WIDTH);
+                    crate::debug!("{x}");
+                    *arr.get_unchecked_mut(x as usize) += 1;
+                }
+            }
+
+            for (x, dx) in iter_x
+                .into_remainder()
+                .assume()
+                .zip(iter_dx.into_remainder().assume())
+            {
+                let x = (dx * timestep + x) % WIDTH;
+                let x = x.rem_euclid(WIDTH);
+                *arr.get_unchecked_mut(x as usize) += 1;
             }
 
             for x in 0..WIDTH - 30 {
                 if *arr.get_unchecked(x as usize) >= 33
                     && *arr.get_unchecked(x.unchecked_add(30) as usize) >= 33
                 {
-                    x_timestep = timestep;
+                    x_timestep = timestep as i32;
                     break 'outer;
                 }
             }
@@ -229,15 +264,37 @@ pub fn part2(input: &str) -> i32 {
         'outer: for timestep in 0..HEIGHT {
             let mut arr = [0u8; HEIGHT as _];
 
-            for robot in ROBOTS {
-                *arr.get_unchecked_mut(robot.y_at::<HEIGHT>(timestep) as usize) += 1;
+            let simd_timestep = Simd::splat(timestep);
+            let mut iter_y = ROBOT_Y.iter().copied().map(i16::from).array_chunks::<16>();
+            let mut iter_dy = ROBOT_DY.iter().copied().map(i16::from).array_chunks::<16>();
+
+            for (y, dy) in (&mut iter_y).zip(&mut iter_dy) {
+                let y = Simd::from_array(y);
+                let dy = Simd::from_array(dy);
+
+                let positions = (dy * simd_timestep + y) % simd_height;
+
+                for &y in positions.as_array() {
+                    let y = y.rem_euclid(HEIGHT);
+                    *arr.get_unchecked_mut(y as usize) += 1;
+                }
+            }
+
+            for (y, dy) in iter_y
+                .into_remainder()
+                .assume()
+                .zip(iter_dy.into_remainder().assume())
+            {
+                let y = (dy * timestep + y) % HEIGHT;
+                let y = y.rem_euclid(HEIGHT);
+                *arr.get_unchecked_mut(y as usize) += 1;
             }
 
             for y in 0..HEIGHT - 32 {
                 if *arr.get_unchecked(y as usize) >= 31
                     && *arr.get_unchecked(y.unchecked_add(32) as usize) >= 31
                 {
-                    y_timestep = timestep;
+                    y_timestep = timestep as i32;
                     break 'outer;
                 }
             }
@@ -249,13 +306,13 @@ pub fn part2(input: &str) -> i32 {
         // m * 101 * 103 + 57 * 101 = 101 a
         // 2a = 86 * 103 - 57 * 101 + (n - m) * 101 * 103
 
-        let x_factor = HEIGHT.unchecked_mul(x_timestep);
-        let y_factor = WIDTH.unchecked_mul(y_timestep);
+        let x_factor = x_timestep.unchecked_mul(HEIGHT as i32);
+        let y_factor = y_timestep.unchecked_mul(WIDTH as i32);
         let factor = x_factor.unchecked_sub(y_factor);
-        let factor = const { WIDTH * HEIGHT }
+        let factor = const { WIDTH as i32 * HEIGHT as i32 }
             .unchecked_mul((factor < 0) as _)
             .unchecked_add(factor);
-        let factor = const { WIDTH * HEIGHT }
+        let factor = const { WIDTH as i32 * HEIGHT as i32 }
             .unchecked_mul(factor % 2)
             .unchecked_add(factor);
 
