@@ -46,7 +46,12 @@ pub const ZERO: u8 = b'0';
 pub const EOL: u8 = b'\n';
 
 #[inline]
-unsafe fn ptr_add(ptr: *const u8, val: usize) -> *const u8 {
+unsafe fn ptr_add<T>(ptr: *const T, val: usize) -> *const T {
+    (ptr as usize).unchecked_add(val) as _
+}
+
+#[inline]
+unsafe fn ptr_add_mut<T>(ptr: *mut T, val: usize) -> *mut T {
     (ptr as usize).unchecked_add(val) as _
 }
 

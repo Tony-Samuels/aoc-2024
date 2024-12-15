@@ -3,7 +3,7 @@ use std::{cmp::Ordering, intrinsics::unchecked_rem, mem::transmute, simd::u8x16}
 
 use aoc_runner_derive::aoc;
 
-use crate::{assume, ptr_add, ArrayVec, Assume, Unreachable};
+use crate::{assume, ptr_add, ptr_add_mut, ArrayVec, Assume, Unreachable};
 
 static LUT: [i8; 256 * 256 * 256] = unsafe { transmute(*include_bytes!("LUT14.bin")) };
 
@@ -151,22 +151,27 @@ unsafe fn parse_robots(input: &str) {
     let input = input.as_bytes();
     let mut pos = 1;
 
+    let robot_x = ROBOT_X.as_mut_ptr();
+    let robot_dx = ROBOT_DX.as_mut_ptr();
+    let robot_y = ROBOT_Y.as_mut_ptr();
+    let robot_dy = ROBOT_DY.as_mut_ptr();
+
     for n in 0..499 {
         let x = parse_num(input, pos);
         pos = pos.unchecked_add(len(x)).unchecked_add(1);
-        *ROBOT_X.get_unchecked_mut(n) = x;
+        *ptr_add_mut(robot_x, n) = x;
 
         let y = parse_num(input, pos);
         pos = pos.unchecked_add(len(y)).unchecked_add(3);
-        *ROBOT_Y.get_unchecked_mut(n) = y;
+        *ptr_add_mut(robot_y, n) = y;
 
         let dx = parse_num(input, pos);
         pos = pos.unchecked_add(len(dx)).unchecked_add(1);
-        *ROBOT_DX.get_unchecked_mut(n) = dx;
+        *ptr_add_mut(robot_dx, n) = dx;
 
         let dy = parse_num(input, pos);
         pos = pos.unchecked_add(len(dy)).unchecked_add(3);
-        *ROBOT_DY.get_unchecked_mut(n) = dy;
+        *ptr_add_mut(robot_dy, n) = dy;
     }
 
     crate::debug!(
@@ -180,15 +185,15 @@ unsafe fn parse_robots(input: &str) {
 
         let x = parse_num(input, pos);
         pos = pos.unchecked_add(len(x)).unchecked_add(1);
-        *ROBOT_X.get_unchecked_mut(n) = x;
+        *ptr_add_mut(robot_x, n) = x;
 
         let y = parse_num(input, pos);
         pos = pos.unchecked_add(len(y)).unchecked_add(3);
-        *ROBOT_Y.get_unchecked_mut(n) = y;
+        *ptr_add_mut(robot_y, n) = y;
 
         let dx = parse_num(input, pos);
         pos = pos.unchecked_add(len(dx)).unchecked_add(1);
-        *ROBOT_DX.get_unchecked_mut(n) = dx;
+        *ptr_add_mut(robot_dx, n) = dx;
 
         let index = u32::from_ne_bytes([
             *input.get(pos.unchecked_add(3)).unwrap_or(&0),
@@ -197,7 +202,7 @@ unsafe fn parse_robots(input: &str) {
             0,
         ]);
         let dy = *LUT.get_unchecked(index as usize);
-        *ROBOT_DY.get_unchecked_mut(n) = dy;
+        *ptr_add_mut(robot_dy, n) = dy;
     }
 }
 
@@ -210,13 +215,20 @@ pub fn part2(input: &str) -> i32 {
 
         parse_robots(input);
 
+        let robot_x = ROBOT_X.as_ptr();
+        let robot_dx = ROBOT_DX.as_ptr();
+        let robot_y = ROBOT_Y.as_ptr();
+        let robot_dy = ROBOT_DY.as_ptr();
+
         let mut x_timestep = 0;
         let mut y_timestep = 0;
 
         'outer: for timestep in 0..WIDTH {
             let mut arr = [0u8; WIDTH as _];
 
-            for (&x, &dx) in ROBOT_X.iter().zip(ROBOT_DX.iter()) {
+            for index in 0..500 {
+                let x = *ptr_add(robot_x, index);
+                let dx = *ptr_add(robot_dx, index);
                 let x = timestep
                     .unchecked_mul(dx as i32)
                     .unchecked_add(x as i32)
@@ -238,7 +250,9 @@ pub fn part2(input: &str) -> i32 {
         'outer: for timestep in 0..HEIGHT {
             let mut arr = [0u8; HEIGHT as _];
 
-            for (&y, &dy) in ROBOT_Y.iter().zip(ROBOT_DY.iter()) {
+            for index in 0..500 {
+                let y = *ptr_add(robot_y, index);
+                let dy = *ptr_add(robot_dy, index);
                 let y = timestep
                     .unchecked_mul(dy as i32)
                     .unchecked_add(y as i32)
