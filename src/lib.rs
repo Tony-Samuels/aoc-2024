@@ -14,6 +14,7 @@
     maybe_uninit_uninit_array,
     never_type,
     portable_simd,
+    ptr_as_ref_unchecked,
     stmt_expr_attributes,
     unchecked_shifts
 )]
@@ -32,6 +33,7 @@ use aoc_runner_derive::aoc_lib;
 pub mod day1;
 pub mod day13;
 pub mod day14;
+pub mod day15;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -44,6 +46,33 @@ aoc_lib! { year = 2024 }
 
 pub const ZERO: u8 = b'0';
 pub const EOL: u8 = b'\n';
+
+pub trait ConstDefault {
+    const DEFAULT: Self;
+}
+
+macro_rules! impl_const_default {
+    ($($typ:ty => $val:expr ),*) => {
+        $(
+            impl ConstDefault for $typ {
+                const DEFAULT: Self = $val;
+            }
+        )*
+    };
+    ($($typ:ty),*) => {
+        $(
+            impl ConstDefault for $typ {
+                const DEFAULT: Self = 0;
+            }
+        )*
+    }
+}
+
+impl_const_default!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128);
+
+impl<const N: usize> ConstDefault for IndexI8<N> {
+    const DEFAULT: Self = Self { x: 0, y: 0 };
+}
 
 #[inline]
 unsafe fn ptr_add(ptr: *const u8, val: usize) -> *const u8 {
@@ -376,10 +405,22 @@ impl Assume for bool {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct ArrayVec<const N: usize, T> {
     inner: [T; N],
     len: usize,
+}
+
+impl<const N: usize, T> Debug for ArrayVec<N, T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArrayVec")
+            .field("inner", &&self.inner[0..self.len])
+            .field("len", &self.len)
+            .finish()
+    }
 }
 
 impl<const N: usize, T> Hash for ArrayVec<N, T>
@@ -403,7 +444,7 @@ impl<const N: usize, T> ArrayVec<N, T> {
     }
 
     #[inline]
-    pub unsafe fn new_unchecked() -> Self {
+    pub const unsafe fn new_unchecked() -> Self {
         Self {
             inner: MaybeUninit::array_assume_init(MaybeUninit::uninit_array()),
             len: 0,
@@ -427,6 +468,15 @@ where
     }
 
     #[inline]
+    pub unsafe fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            return None;
+        } else {
+            Some(self.pop_unchecked())
+        }
+    }
+
+    #[inline]
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
         self.get_unchecked(self.len)
@@ -435,12 +485,12 @@ where
 
 impl<const N: usize, T> ArrayVec<N, T>
 where
-    T: Copy + Default,
+    T: Copy + ConstDefault,
     [T; N]:,
 {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            inner: [T::default(); N],
+            inner: [T::DEFAULT; N],
             len: 0,
         }
     }
@@ -476,13 +526,23 @@ macro_rules! index_n {
             }
 
             impl<const DIM: usize> [<Index $typ:upper>]<DIM> {
+                pub const UP: Self = Self::y(-1);
+                pub const DOWN: Self = Self::y(1);
+                pub const LEFT: Self = Self::x(-1);
+                pub const RIGHT: Self = Self::x(1);
+
+                pub const NORTH: Self = Self::UP;
+                pub const SOUTH: Self = Self::DOWN;
+                pub const EAST: Self = Self::RIGHT;
+                pub const WEST: Self = Self::LEFT;
+
                 #[inline]
-                pub fn x(x: $typ) -> Self {
+                pub const fn x(x: $typ) -> Self {
                     Self { x, y: 0 }
                 }
 
                 #[inline]
-                pub fn y(y: $typ) -> Self {
+                pub const fn y(y: $typ) -> Self {
                     Self { x: 0, y }
                 }
 

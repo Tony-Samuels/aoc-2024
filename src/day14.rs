@@ -1,9 +1,8 @@
-#![allow(unused, unused_variables, unused_mut, unused_imports)]
-use std::{cmp::Ordering, intrinsics::unchecked_rem, mem::transmute, simd::u8x16};
+use std::{cmp::Ordering, mem::transmute};
 
 use aoc_runner_derive::aoc;
 
-use crate::{assume, ptr_add, ArrayVec, Assume, Unreachable};
+use crate::{ptr_add, Assume, Unreachable};
 
 static LUT: [i8; 256 * 256 * 256] = unsafe { transmute(*include_bytes!("LUT14.bin")) };
 
@@ -320,13 +319,11 @@ mod tests {
 
     #[test]
     fn lut_check() {
-        unsafe {
-            for (bytes, val) in [("0,4", 0), ("-1,", -1), ("66,", 66), ("101", 101)] {
-                let bytes = bytes.as_bytes();
-                let lookup =
-                    ((bytes[0] as usize) << 16) + ((bytes[1] as usize) << 8) + bytes[2] as usize;
-                assert_eq!(LUT[lookup] as i8, val);
-            }
+        for (bytes, val) in [("0,4", 0), ("-1,", -1), ("66,", 66), ("101", 101)] {
+            let bytes = bytes.as_bytes();
+            let lookup =
+                ((bytes[0] as usize) << 16) + ((bytes[1] as usize) << 8) + bytes[2] as usize;
+            assert_eq!(LUT[lookup] as i8, val);
         }
     }
 }
