@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use aoc_2024::day7::{part1, part2};
+use aoc_2024::day1::{part1, part2};
 
 fn bench_part1(c: &mut Criterion) {
     let input = include_str!("../input/2024/day1.txt");

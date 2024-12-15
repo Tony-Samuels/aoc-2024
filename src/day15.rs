@@ -48,7 +48,7 @@ impl<const DIM: usize> Display for FieldP1<DIM> {
             for x in 0..DIM {
                 write!(f, "{}", self[y][x] as u8 as char)?;
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         Ok(())
