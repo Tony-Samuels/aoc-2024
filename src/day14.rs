@@ -42,6 +42,7 @@ unsafe fn parse_num(input: &[u8], pos: usize) -> i8 {
 }
 
 impl Robot {
+    #[inline]
     unsafe fn x_at<const WIDTH: i32>(self, timestep: i32) -> i32 {
         timestep
             .unchecked_mul(self.dx as i32)
@@ -49,6 +50,7 @@ impl Robot {
             .checked_rem_euclid(WIDTH)
             .unwrap_or_else(|| Unreachable.assume())
     }
+    #[inline]
     unsafe fn y_at<const HEIGHT: i32>(self, timestep: i32) -> i32 {
         timestep
             .unchecked_mul(self.dy as i32)
