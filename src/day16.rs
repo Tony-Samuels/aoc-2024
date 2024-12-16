@@ -13,10 +13,6 @@ pub fn part1(input: &str) -> u32 {
     unsafe { inner_p1::<141>(input, &mut COST) }
 }
 
-const fn estimate_cost<const DIM: usize>(Index { y, x }: Index<DIM>) -> u32 {
-    (const { DIM * 2 - 2 } as u32) - x as u32 - y as u32 + (x != 0 && y != 0) as u32 * 1_000
-}
-
 #[derive(Debug, PartialEq, Eq)]
 struct HeapEntry<const DIM: usize> {
     heuristic: u32,
@@ -54,7 +50,7 @@ unsafe fn inner_p1<const DIM: usize>(input: &str, curr_cost: &mut [[[u32; 4]; DI
 
     let mut heap = BinaryHeap::new();
     heap.push(Reverse(HeapEntry {
-        heuristic: estimate_cost(start),
+        heuristic: 0,
         index: start,
         dir: Direction::East,
         #[cfg(test)]
@@ -62,7 +58,7 @@ unsafe fn inner_p1<const DIM: usize>(input: &str, curr_cost: &mut [[[u32; 4]; DI
     }));
 
     while let Some(Reverse(HeapEntry {
-        heuristic,
+        heuristic: _,
         index,
         dir,
         #[cfg(test)]
@@ -89,7 +85,7 @@ unsafe fn inner_p1<const DIM: usize>(input: &str, curr_cost: &mut [[[u32; 4]; DI
         if rotation_cost < *clockwise {
             *clockwise = rotation_cost;
             heap.push(Reverse(HeapEntry {
-                heuristic: heuristic + 1_000,
+                heuristic: rotation_cost,
                 index,
                 dir: dir.rotate_clockwise(),
                 #[cfg(test)]
@@ -106,7 +102,7 @@ unsafe fn inner_p1<const DIM: usize>(input: &str, curr_cost: &mut [[[u32; 4]; DI
         if rotation_cost < *widdershins {
             *widdershins = rotation_cost;
             heap.push(Reverse(HeapEntry {
-                heuristic: heuristic + 1_000,
+                heuristic: rotation_cost,
                 index,
                 dir: dir.rotate_widdershins(),
                 #[cfg(test)]
@@ -124,7 +120,7 @@ unsafe fn inner_p1<const DIM: usize>(input: &str, curr_cost: &mut [[[u32; 4]; DI
             if step_cost < *step {
                 *step = step_cost;
                 heap.push(Reverse(HeapEntry {
-                    heuristic: step_cost + estimate_cost(new_index),
+                    heuristic: step_cost,
                     index: new_index,
                     dir,
                     #[cfg(test)]
