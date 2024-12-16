@@ -34,6 +34,7 @@ pub mod day1;
 pub mod day13;
 pub mod day14;
 pub mod day15;
+pub mod day16;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -70,8 +71,12 @@ macro_rules! impl_const_default {
 
 impl_const_default!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128);
 
-impl<const N: usize> ConstDefault for IndexI8<N> {
-    const DEFAULT: Self = Self { x: 0, y: 0 };
+impl<T, U> ConstDefault for (T, U)
+where
+    T: ConstDefault,
+    U: ConstDefault,
+{
+    const DEFAULT: Self = (T::DEFAULT, U::DEFAULT);
 }
 
 #[inline]
@@ -516,6 +521,139 @@ where
 
 impl<const N: usize, T> Eq for ArrayVec<N, T> where T: Eq {}
 
+#[derive(Clone, Copy)]
+pub struct ArrayVecDeque<const N: usize, T> {
+    inner: [T; N],
+    start: usize,
+    end: usize,
+}
+
+impl<const N: usize, T> Debug for ArrayVecDeque<N, T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArrayVecDeque")
+            .field("inner", &&self.inner[self.start..self.end])
+            .field("start", &self.start)
+            .field("end", &self.end)
+            .finish()
+    }
+}
+
+impl<const N: usize, T> Hash for ArrayVecDeque<N, T>
+where
+    [T]: Hash,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        unsafe { self.as_slice() }.hash(state)
+    }
+}
+
+impl<const N: usize, T> ArrayVecDeque<N, T> {
+    #[inline]
+    pub unsafe fn as_slice(&self) -> &[T] {
+        self.inner.get_unchecked(self.start..self.end)
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        self.start = N / 2;
+        self.end = N / 2;
+    }
+
+    #[inline]
+    pub const unsafe fn new_unchecked() -> Self {
+        Self {
+            inner: MaybeUninit::array_assume_init(MaybeUninit::uninit_array()),
+            start: N / 2,
+            end: N / 2,
+        }
+    }
+}
+
+impl<const N: usize, T> ArrayVecDeque<N, T>
+where
+    T: Copy,
+{
+    #[inline]
+    pub unsafe fn push_front_unchecked(&mut self, item: T) {
+        self.start -= 1;
+        *self.inner.get_unchecked_mut(self.start) = item;
+    }
+
+    #[inline]
+    pub unsafe fn pop_front(&mut self) -> Option<T> {
+        if self.start != self.end {
+            None
+        } else {
+            Some(self.pop_front_unchecked())
+        }
+    }
+
+    #[inline]
+    pub unsafe fn pop_front_unchecked(&mut self) -> T {
+        let res = *self.inner.get_unchecked(self.start);
+        self.start += 1;
+        res
+    }
+
+    #[inline]
+    pub unsafe fn push_back_unchecked(&mut self, item: T) {
+        self.end += 1;
+        *self.inner.get_unchecked_mut(self.end) = item;
+    }
+
+    #[inline]
+    pub unsafe fn pop_back(&mut self) -> Option<T> {
+        if self.start != self.end {
+            None
+        } else {
+            Some(self.pop_back_unchecked())
+        }
+    }
+
+    #[inline]
+    pub unsafe fn pop_back_unchecked(&mut self) -> T {
+        self.end -= 1;
+        *self.inner.get_unchecked(self.end)
+    }
+}
+
+impl<const N: usize, T> ArrayVecDeque<N, T>
+where
+    T: Copy + ConstDefault,
+    [T; N]:,
+{
+    pub const fn new() -> Self {
+        Self {
+            inner: [T::DEFAULT; N],
+            start: N / 2,
+            end: N / 2,
+        }
+    }
+}
+
+impl<'a, const N: usize, T> IntoIterator for &'a ArrayVecDeque<N, T> {
+    type IntoIter = std::slice::Iter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        unsafe { self.inner.get_unchecked(self.start..self.end).iter() }
+    }
+}
+
+impl<const N: usize, T> PartialEq for ArrayVecDeque<N, T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner[self.start..self.end] == other.inner[other.start..self.end]
+    }
+}
+
+impl<const N: usize, T> Eq for ArrayVecDeque<N, T> where T: Eq {}
+
 macro_rules! index_n {
     ($typ:ty) => {
         paste::paste! {
@@ -615,6 +753,21 @@ macro_rules! index_n {
                     *self = *self - rhs;
                 }
             }
+
+            impl<const DIM: usize> From<Direction> for [<Index $typ:upper>]<DIM> {
+                fn from(dir: Direction) -> Self {
+                    match dir {
+                        Direction::North => Self::NORTH,
+                        Direction::South => Self::SOUTH,
+                        Direction::East => Self::EAST,
+                        Direction::West => Self::WEST,
+                    }
+                }
+            }
+
+            impl<const DIM: usize> ConstDefault for [<Index $typ:upper>]<DIM> {
+                const DEFAULT: Self = Self { x: 0, y: 0 };
+            }
         }
     };
     ($($typ:ty),*) => {
@@ -622,4 +775,37 @@ macro_rules! index_n {
     };
 }
 
-index_n! { i8 }
+index_n! { i8, i16 }
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(u8)]
+pub enum Direction {
+    North = 0,
+    East = 1,
+    South = 2,
+    West = 3,
+}
+
+impl Direction {
+    pub const fn rotate_clockwise(self) -> Self {
+        match self {
+            Self::North => Self::East,
+            Self::East => Self::South,
+            Self::South => Self::West,
+            Self::West => Self::North,
+        }
+    }
+
+    pub const fn rotate_widdershins(self) -> Self {
+        match self {
+            Self::North => Self::West,
+            Self::West => Self::South,
+            Self::South => Self::East,
+            Self::East => Self::North,
+        }
+    }
+}
+
+impl ConstDefault for Direction {
+    const DEFAULT: Self = Self::North;
+}
