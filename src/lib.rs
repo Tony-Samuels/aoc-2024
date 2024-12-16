@@ -1,5 +1,6 @@
 #![allow(
     clippy::missing_safety_doc,
+    clippy::missing_transmute_annotations,
     clippy::new_without_default,
     incomplete_features,
     internal_features,
