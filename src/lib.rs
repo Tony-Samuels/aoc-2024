@@ -474,11 +474,11 @@ where
     }
 
     #[inline]
-    pub unsafe fn pop(&mut self) -> Option<T> {
+    pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             None
         } else {
-            Some(self.pop_unchecked())
+            Some(unsafe { self.pop_unchecked() })
         }
     }
 
