@@ -286,30 +286,28 @@ unsafe fn inner_p2<const DIM: usize>(
 
         crate::debug!("Path through {index:?}, {dir:?} with value {value}");
 
-        if value >= 1_000 {
-            if curr_tile[dir.rotate_clockwise() as usize] == value - 1_000 {
-                stack.push_unchecked(StackEntry {
-                    index,
-                    dir: dir.rotate_clockwise(),
-                });
-            }
-
-            if curr_tile[dir.rotate_widdershins() as usize] == value - 1_000 {
-                stack.push_unchecked(StackEntry {
-                    index,
-                    dir: dir.rotate_widdershins(),
-                });
-            }
+        if curr_tile[dir.rotate_clockwise() as usize].saturating_add(1_000) == value {
+            stack.push_unchecked(StackEntry {
+                index,
+                dir: dir.rotate_clockwise(),
+            });
         }
 
-        if value >= 1 {
-            let old_pos = index - dir.into();
-            if curr_cost[old_pos.y as usize][old_pos.x as usize][dir as usize] == value - 1 {
-                stack.push_unchecked(StackEntry {
-                    index: old_pos,
-                    dir,
-                });
-            }
+        if curr_tile[dir.rotate_widdershins() as usize].saturating_add(1_000) == value {
+            stack.push_unchecked(StackEntry {
+                index,
+                dir: dir.rotate_widdershins(),
+            });
+        }
+
+        let old_pos = index - dir.into();
+        if curr_cost[old_pos.y as usize][old_pos.x as usize][dir as usize].saturating_add(1)
+            == value
+        {
+            stack.push_unchecked(StackEntry {
+                index: old_pos,
+                dir,
+            });
         }
     }
 
