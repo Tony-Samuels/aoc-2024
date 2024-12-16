@@ -174,7 +174,7 @@ unsafe fn inner_p2<const DIM: usize>(
 
     let mut heap = BinaryHeap::new();
     heap.push(Reverse(HeapEntry {
-        heuristic: estimate_cost(start),
+        heuristic: 0,
         index: start,
         dir: Direction::East,
         #[cfg(test)]
@@ -239,7 +239,7 @@ unsafe fn inner_p2<const DIM: usize>(
             if step_cost < *step {
                 *step = step_cost;
                 heap.push(Reverse(HeapEntry {
-                    heuristic: step_cost + estimate_cost(new_index),
+                    heuristic: step_cost,
                     index: new_index,
                     dir,
                     #[cfg(test)]
