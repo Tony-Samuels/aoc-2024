@@ -29,10 +29,6 @@ enum CellP1 {
 }
 
 impl CellP1 {
-    fn is_robot(&self) -> bool {
-        matches!(self, Self::Robot)
-    }
-
     fn is_object(&self) -> bool {
         matches!(self, Self::Object)
     }
@@ -132,9 +128,8 @@ impl<const DIM: usize> IndexMut<IndexI8<DIM>> for FieldP1<DIM> {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn read_field_p1<const DIM: usize>(input: &[u8], field: &mut FieldP1<DIM>) -> IndexI8<DIM> {
+unsafe fn read_field_p1<const DIM: usize>(input: &[u8], field: &mut FieldP1<DIM>) {
     let input: &[CellP1] = transmute(input);
-    let mut start_index = IndexI8 { x: 0, y: 0 };
 
     for line in 0..DIM {
         let pos = line * (DIM + 1);
@@ -144,18 +139,7 @@ unsafe fn read_field_p1<const DIM: usize>(input: &[u8], field: &mut FieldP1<DIM>
             .add(pos)
             .cast::<[CellP1; DIM]>()
             .read_unaligned();
-
-        if let Some(x) = cell_line.iter().position(CellP1::is_robot) {
-            start_index = IndexI8 {
-                x: x as _,
-                y: line as _,
-            };
-        }
     }
-
-    debug_assert!(start_index != IndexI8 { x: 0, y: 0 });
-    field[start_index] = CellP1::Empty;
-    start_index
 }
 
 #[aoc(day15, part1)]
@@ -164,8 +148,8 @@ pub fn part1(input: &str) -> usize {
     let input = input.as_bytes();
 
     unsafe {
-        let initial = read_field_p1(input, &mut FIELD);
-        inner_p1(input, &mut FIELD, initial)
+        read_field_p1(input, &mut FIELD);
+        inner_p1(input, &mut FIELD, IndexI8 { y: 25, x: 25 })
     }
 }
 
@@ -368,35 +352,23 @@ impl<const DIM: usize> IndexMut<IndexI8<{ 2 * DIM }>> for FieldP2<DIM> {
     }
 }
 
+const CELL_LOOKUP: [[CellP2; 2]; 256] = {
+    let mut lookup = [[CellP2::Empty; _]; _];
+    lookup[WALL as usize] = [CellP2::Wall; _];
+    lookup[OBJECT as usize] = [CellP2::ObjectLeft, CellP2::ObjectRight];
+
+    lookup
+};
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn read_field_p2<const DIM: usize>(
-    input: &[u8],
-    field: &mut FieldP2<DIM>,
-) -> IndexI8<{ 2 * DIM }>
+unsafe fn read_field_p2<const DIM: usize>(input: &[u8], field: &mut FieldP2<DIM>)
 where
     [(); 2 * DIM]:,
 {
-    let mut start_index = IndexI8 { x: 0, y: 0 };
-
     for y in 0..DIM {
         for x in 0..DIM {
             let c = input[y * (DIM + 1) + x];
-            let cell = match c {
-                ROBOT => {
-                    start_index = IndexI8 {
-                        x: x as i8 * 2,
-                        y: y as _,
-                    };
-                    [CellP2::Empty; 2]
-                }
-                WALL => [CellP2::Wall; 2],
-                EMPTY => [CellP2::Empty; 2],
-                OBJECT => [CellP2::ObjectLeft, CellP2::ObjectRight],
-                _c => {
-                    crate::debug!("Unreachable char {_c} ({})", _c as char);
-                    Unreachable.assume();
-                }
-            };
+            let cell = CELL_LOOKUP.get_unchecked(c as usize);
 
             field[y][2 * x] = cell[0];
             field[y][2 * x + 1] = cell[1];
@@ -408,9 +380,6 @@ where
             // )
         }
     }
-
-    debug_assert!(start_index != IndexI8 { x: 0, y: 0 });
-    start_index
 }
 
 #[aoc(day15, part2)]
@@ -420,8 +389,8 @@ pub fn part2(input: &str) -> usize {
     let input = input.as_bytes();
 
     unsafe {
-        let initial = read_field_p2(input, &mut FIELD);
-        inner_p2(input, &mut FIELD, initial, &mut STACK)
+        read_field_p2(input, &mut FIELD);
+        inner_p2(input, &mut FIELD, IndexI8 { y: 25, x: 49 }, &mut STACK)
     }
 }
 
