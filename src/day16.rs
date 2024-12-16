@@ -181,6 +181,8 @@ unsafe fn inner_p2<const DIM: usize>(
         path: Vec::new(),
     }));
 
+    let mut min = u32::MAX;
+
     while let Some(Reverse(HeapEntry {
         heuristic,
         index,
@@ -196,6 +198,12 @@ unsafe fn inner_p2<const DIM: usize>(
 
         let base_cost = curr_cost[index.y as usize][index.x as usize][dir as usize];
         crate::debug!("Checking {index:?}, {dir:?} with cost {base_cost}");
+
+        if index == end && base_cost < min {
+            min = base_cost;
+        } else if base_cost > min {
+            continue;
+        }
 
         let rotation_cost = base_cost + 1_000;
         let clockwise =
