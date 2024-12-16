@@ -389,7 +389,7 @@ where
 {
     let input = input.get_unchecked((DIM + 1) * DIM + 1..);
 
-    for c in input {
+    'outer: for c in input {
         let dir = match c {
             b'>' => IndexI8::RIGHT,
             b'^' => IndexI8::UP,
@@ -409,8 +409,7 @@ where
             CellP2::Empty => pos = new_pos,
             CellP2::Wall => (),
             CellP2::ObjectLeft | CellP2::ObjectRight => {
-                let mut queued = [[false; 2 * DIM]; DIM];
-                let mut moved = true;
+                let mut queued = [0_u128; DIM];
 
                 stack.push_unchecked(pos);
                 for index in 0.. {
@@ -425,39 +424,38 @@ where
                         CellP2::Wall => {
                             crate::debug!("Hit a wall");
                             stack.clear();
-                            moved = false;
-                            break;
+                            continue 'outer;
                         }
                         CellP2::ObjectLeft => {
                             {
-                                let queued = &mut queued[new_pos.y as usize][new_pos.x as usize];
-                                if !*queued {
-                                    *queued = true;
+                                let queued = &mut queued[new_pos.y as usize];
+                                if (*queued & 1 << new_pos.x) == 0 {
+                                    *queued |= 1 << new_pos.x;
                                     stack.push_unchecked(new_pos);
                                 }
                             }
                             {
                                 let new_pos = new_pos + IndexI8::RIGHT;
-                                let queued = &mut queued[new_pos.y as usize][new_pos.x as usize];
-                                if !*queued {
-                                    *queued = true;
+                                let queued = &mut queued[new_pos.y as usize];
+                                if (*queued & 1 << new_pos.x) == 0 {
+                                    *queued |= 1 << new_pos.x;
                                     stack.push_unchecked(new_pos);
                                 }
                             }
                         }
                         CellP2::ObjectRight => {
                             {
-                                let queued = &mut queued[new_pos.y as usize][new_pos.x as usize];
-                                if !*queued {
-                                    *queued = true;
+                                let queued = &mut queued[new_pos.y as usize];
+                                if (*queued & 1 << new_pos.x) == 0 {
+                                    *queued |= 1 << new_pos.x;
                                     stack.push_unchecked(new_pos);
                                 }
                             }
                             {
                                 let new_pos = new_pos + IndexI8::LEFT;
-                                let queued = &mut queued[new_pos.y as usize][new_pos.x as usize];
-                                if !*queued {
-                                    *queued = true;
+                                let queued = &mut queued[new_pos.y as usize];
+                                if (*queued & 1 << new_pos.x) == 0 {
+                                    *queued |= 1 << new_pos.x;
                                     stack.push_unchecked(new_pos);
                                 }
                             }
@@ -465,11 +463,8 @@ where
                     }
                 }
 
-                if moved {
-                    pos += dir;
-                }
-
                 crate::debug!("Moving {} tiles by {} ({dir:?})", stack.len, *c as char);
+                pos += dir;
                 while let Some(pos) = stack.pop() {
                     crate::debug!(
                         "Moving {} from {pos:?} to {:?}",
