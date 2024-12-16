@@ -1,6 +1,5 @@
 use std::{
     fmt::Display,
-    mem::transmute,
     ops::{Index, IndexMut},
     simd::{cmp::SimdPartialEq, Simd},
 };
@@ -14,39 +13,26 @@ const EMPTY: u8 = b'.';
 const OBJECT: u8 = b'O';
 const ROBOT: u8 = b'@';
 
-#[derive(Debug, Clone, Copy)]
-#[repr(u8)]
-enum CellP1 {
-    Empty = EMPTY,
-    // Compiler sees it as never created, due to being created via [`transmute`]
-    #[expect(dead_code)]
-    Wall = WALL,
-    // Compiler sees it as never created, due to being created via [`transmute`]
-    Object = OBJECT,
-    // Compiler sees it as never created, due to being created via [`transmute`]
-    #[expect(dead_code)]
-    Robot = ROBOT,
-}
-
-impl CellP1 {
-    fn is_robot(&self) -> bool {
-        matches!(self, Self::Robot)
-    }
-
-    fn is_object(&self) -> bool {
-        matches!(self, Self::Object)
-    }
-}
-
 struct FieldP1<const DIM: usize> {
-    inner: [CellP1; 50 * 50],
+    walls: [u64; 50],
+    objects: [u64; 50],
 }
 
 impl<const DIM: usize> Display for FieldP1<DIM> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for y in 0..DIM {
             for x in 0..DIM {
-                write!(f, "{}", self[y][x] as u8 as char)?;
+                write!(
+                    f,
+                    "{}",
+                    if self.walls[y] & 1 << x != 0 {
+                        '#'
+                    } else if self.objects[y] & 1 << x != 0 {
+                        'O'
+                    } else {
+                        '.'
+                    }
+                )?;
             }
             writeln!(f)?;
         }
@@ -58,103 +44,72 @@ impl<const DIM: usize> Display for FieldP1<DIM> {
 impl<const DIM: usize> FieldP1<DIM> {
     const fn new() -> Self {
         Self {
-            inner: [CellP1::Empty; _],
+            walls: [0; _],
+            objects: [0; _],
         }
     }
 
     unsafe fn value(&self) -> usize {
-        let objects = Simd::splat(CellP1::Object as u8);
-        let second_half_start = DIM - 32;
         let mut sum = 0;
-        let mut inner = self.inner.as_ptr();
 
         for y in 0..DIM {
-            let first_half = inner.cast::<Simd<u8, 32>>().read_unaligned();
-            let second_half = inner
-                .add(second_half_start)
-                .cast::<Simd<u8, 32>>()
-                .read_unaligned();
-            let mask = first_half.simd_eq(objects).to_bitmask()
-                | second_half
-                    .simd_eq(objects)
-                    .to_bitmask()
-                    .unchecked_shl(second_half_start as _);
-
-            for x in BitIterU64(mask) {
+            for x in BitIterU64(self.objects[y]) {
                 sum += 100 * y + x;
             }
-
-            inner = inner.add(DIM);
         }
 
         sum
     }
 }
 
-impl<const DIM: usize> Index<usize> for FieldP1<DIM> {
-    type Output = [CellP1; DIM];
-
-    fn index(&self, index: usize) -> &Self::Output {
-        unsafe {
-            self.inner
-                .as_ptr()
-                .add(index * DIM)
-                .cast::<Self::Output>()
-                .as_ref_unchecked()
-        }
-    }
-}
-
-impl<const DIM: usize> IndexMut<usize> for FieldP1<DIM> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        unsafe {
-            self.inner
-                .as_mut_ptr()
-                .add(index * DIM)
-                .cast::<Self::Output>()
-                .as_mut_unchecked()
-        }
-    }
-}
-
-impl<const DIM: usize> Index<IndexI8<DIM>> for FieldP1<DIM> {
-    type Output = CellP1;
-
-    fn index(&self, index: IndexI8<DIM>) -> &Self::Output {
-        &self[index.y as usize][index.x as usize]
-    }
-}
-
-impl<const DIM: usize> IndexMut<IndexI8<DIM>> for FieldP1<DIM> {
-    fn index_mut(&mut self, index: IndexI8<DIM>) -> &mut Self::Output {
-        &mut self[index.y as usize][index.x as usize]
-    }
-}
-
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn read_field_p1<const DIM: usize>(input: &[u8], field: &mut FieldP1<DIM>) -> IndexI8<DIM> {
-    let input: &[CellP1] = transmute(input);
+    let second_half_start = DIM - 32;
+    let mut input = input.as_ptr();
     let mut start_index = IndexI8 { x: 0, y: 0 };
 
-    for line in 0..DIM {
-        let pos = line * (DIM + 1);
-        let cell_line = &mut field[line];
-        *cell_line = input
-            .as_ptr()
-            .add(pos)
-            .cast::<[CellP1; DIM]>()
+    let objects = Simd::splat(OBJECT);
+    let walls = Simd::splat(WALL);
+    let robots = Simd::splat(ROBOT);
+
+    for y in 0..DIM {
+        let first_half = input.cast::<Simd<u8, 32>>().read_unaligned();
+        let second_half = input
+            .add(second_half_start)
+            .cast::<Simd<u8, 32>>()
             .read_unaligned();
 
-        if let Some(x) = cell_line.iter().position(CellP1::is_robot) {
+        let mask = first_half.simd_eq(objects).to_bitmask()
+            | second_half
+                .simd_eq(objects)
+                .to_bitmask()
+                .unchecked_shl(second_half_start as _);
+        field.objects[y] = mask;
+
+        let mask = first_half.simd_eq(walls).to_bitmask()
+            | second_half
+                .simd_eq(walls)
+                .to_bitmask()
+                .unchecked_shl(second_half_start as _);
+        field.walls[y] = mask;
+
+        let mask = first_half.simd_eq(robots).to_bitmask()
+            | second_half
+                .simd_eq(robots)
+                .to_bitmask()
+                .unchecked_shl(second_half_start as _);
+
+        if mask != 0 {
             start_index = IndexI8 {
-                x: x as _,
-                y: line as _,
+                x: (mask.leading_zeros() - (64 - 50)) as i8,
+                y: y as _,
             };
         }
+
+        input = input.add(DIM + 1);
     }
 
     debug_assert!(start_index != IndexI8 { x: 0, y: 0 });
-    field[start_index] = CellP1::Empty;
     start_index
 }
 
@@ -194,27 +149,23 @@ unsafe fn inner_p1<const DIM: usize>(
 
         let new_pos = pos + dir;
         let mut object_push = pos + dir;
-        match field[object_push] {
-            CellP1::Empty | CellP1::Robot => pos = new_pos,
-            CellP1::Wall => (),
-            CellP1::Object => {
-                while field[object_push].is_object() {
-                    object_push += dir;
-                }
 
-                match field[object_push] {
-                    CellP1::Empty | CellP1::Robot => {
-                        field[object_push] = CellP1::Object;
-                        field[new_pos] = CellP1::Empty;
-                        pos = new_pos;
-                    }
-                    CellP1::Wall => (),
-                    CellP1::Object => Unreachable.assume(),
-                }
+        if field.objects[object_push.y as usize] & 1 << object_push.x != 0 {
+            while field.objects[object_push.y as usize] & 1 << object_push.x != 0 {
+                object_push += dir;
             }
+
+            if field.walls[object_push.y as usize] & 1 << object_push.x == 0 {
+                field.objects[new_pos.y as usize] &= !(1 << new_pos.x);
+                field.objects[object_push.y as usize] |= 1 << object_push.x;
+                pos = new_pos;
+            }
+        } else if field.walls[object_push.y as usize] & 1 << object_push.x == 0 {
+            pos = new_pos;
         }
 
         crate::debug!("Map:\n{field}");
+        debug_assert!((0..DIM).all(|y| field.walls[y] & field.objects[y] == 0));
     }
 
     field.value()
