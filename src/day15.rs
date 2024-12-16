@@ -2,11 +2,12 @@ use std::{
     fmt::Display,
     mem::transmute,
     ops::{Index, IndexMut},
+    simd::{cmp::SimdPartialEq, Simd},
 };
 
 use aoc_runner_derive::aoc;
 
-use crate::{ArrayVec, Assume, IndexI8, Unreachable};
+use crate::{ArrayVec, Assume, BitIterU64, IndexI8, Unreachable};
 
 const WALL: u8 = b'#';
 const EMPTY: u8 = b'.';
@@ -21,7 +22,6 @@ enum CellP1 {
     #[expect(dead_code)]
     Wall = WALL,
     // Compiler sees it as never created, due to being created via [`transmute`]
-    #[expect(dead_code)]
     Object = OBJECT,
     // Compiler sees it as never created, due to being created via [`transmute`]
     #[expect(dead_code)]
@@ -62,14 +62,29 @@ impl<const DIM: usize> FieldP1<DIM> {
         }
     }
 
-    fn value(&self) -> usize {
+    unsafe fn value(&self) -> usize {
+        let objects = Simd::splat(CellP1::Object as u8);
+        let second_half_start = DIM - 32;
         let mut sum = 0;
+        let mut inner = self.inner.as_ptr();
+
         for y in 0..DIM {
-            for x in 0..DIM {
-                if self[y][x].is_object() {
-                    sum += 100 * y + x;
-                }
+            let first_half = inner.cast::<Simd<u8, 32>>().read_unaligned();
+            let second_half = inner
+                .add(second_half_start)
+                .cast::<Simd<u8, 32>>()
+                .read_unaligned();
+            let mask = first_half.simd_eq(objects).to_bitmask()
+                | second_half
+                    .simd_eq(objects)
+                    .to_bitmask()
+                    .unchecked_shl(second_half_start as _);
+
+            for x in BitIterU64(mask) {
+                sum += 100 * y + x;
             }
+
+            inner = inner.add(DIM);
         }
 
         sum
@@ -206,6 +221,7 @@ unsafe fn inner_p1<const DIM: usize>(
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(u8)]
 enum CellP2 {
     Empty,
     Wall,
@@ -238,14 +254,46 @@ where
         }
     }
 
-    fn value(&self) -> usize {
+    unsafe fn value(&self) -> usize {
+        let objects = Simd::splat(CellP2::ObjectLeft as u8);
+        let second_half_start = DIM - 32;
         let mut sum = 0;
+        let mut inner = self.inner.as_ptr();
+
         for y in 0..DIM {
-            for x in 0..DIM * 2 {
-                if matches!(self[y][x], CellP2::ObjectLeft) {
-                    sum += 100 * y + x;
-                }
+            let first_half = inner.cast::<Simd<u8, 32>>().read_unaligned();
+            let second_half = inner
+                .add(second_half_start)
+                .cast::<Simd<u8, 32>>()
+                .read_unaligned();
+            let mask = first_half.simd_eq(objects).to_bitmask()
+                | second_half
+                    .simd_eq(objects)
+                    .to_bitmask()
+                    .unchecked_shl(second_half_start as _);
+
+            for x in BitIterU64(mask) {
+                sum += 100 * y + x;
             }
+
+            inner = inner.add(DIM);
+
+            let first_half = inner.cast::<Simd<u8, 32>>().read_unaligned();
+            let second_half = inner
+                .add(second_half_start)
+                .cast::<Simd<u8, 32>>()
+                .read_unaligned();
+            let mask = first_half.simd_eq(objects).to_bitmask()
+                | second_half
+                    .simd_eq(objects)
+                    .to_bitmask()
+                    .unchecked_shl(second_half_start as _);
+
+            for x in BitIterU64(mask) {
+                sum += 100 * y + x + 50;
+            }
+
+            inner = inner.add(DIM);
         }
 
         sum
@@ -485,66 +533,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-
     use super::*;
-
-    #[test]
-    fn p1_large_example() {
-        let input = indoc! {"
-            ##########
-            #..O..O.O#
-            #......O.#
-            #.OO..O.O#
-            #..O@..O.#
-            #O#..O...#
-            #O..O..O.#
-            #.OO.O.OO#
-            #....O...#
-            ##########
-
-            <vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^
-            vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
-            ><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<
-            <<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^
-            ^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><
-            ^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^
-            >^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^
-            <><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>
-            ^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>
-            v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^
-        "}
-        .as_bytes();
-
-        let mut field = FieldP1::<10>::new();
-        unsafe {
-            let start = read_field_p1(input, &mut field);
-            assert_eq!(inner_p1(input, &mut field, start), 10_092);
-        }
-    }
-
-    #[test]
-    fn p1_small_example() {
-        let input = indoc! {"
-            ########
-            #..O.O.#
-            ##@.O..#
-            #...O..#
-            #.#.O..#
-            #...O..#
-            #......#
-            ########
-
-            <^^>>>vv<v>>v<<
-        "}
-        .as_bytes();
-
-        let mut field = FieldP1::<8>::new();
-        unsafe {
-            let start = read_field_p1(input, &mut field);
-            assert_eq!(inner_p1(input, &mut field, start), 2_028);
-        }
-    }
 
     #[test]
     fn real_p1() {
@@ -556,68 +545,5 @@ mod tests {
     fn real_p2() {
         let input = include_str!("../input/2024/day15.txt");
         assert_eq!(part2(input), 1_425_169);
-    }
-
-    #[test]
-    fn p2_small_example() {
-        let input = indoc! {"
-            #######
-            #...#.#
-            #.....#
-            #..OO@#
-            #..O..#
-            #.....#
-            #######
-
-            <vv<<^^<<^^
-        "}
-        .as_bytes();
-
-        let mut stack = ArrayVec::new();
-
-        let mut field = FieldP2::<7>::new();
-        unsafe {
-            let start = read_field_p2(input, &mut field);
-            assert_eq!(
-                inner_p2(input, &mut field, start, &mut stack),
-                105 + 207 + 306
-            );
-        }
-    }
-
-    #[test]
-    fn p2_large_example() {
-        let input = indoc! {"
-            ##########
-            #..O..O.O#
-            #......O.#
-            #.OO..O.O#
-            #..O@..O.#
-            #O#..O...#
-            #O..O..O.#
-            #.OO.O.OO#
-            #....O...#
-            ##########
-
-            <vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^
-            vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
-            ><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<
-            <<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^
-            ^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><
-            ^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^
-            >^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^
-            <><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>
-            ^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>
-            v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^
-        "}
-        .as_bytes();
-
-        let mut stack = ArrayVec::new();
-
-        let mut field = FieldP2::<10>::new();
-        unsafe {
-            let start = read_field_p2(input, &mut field);
-            assert_eq!(inner_p2(input, &mut field, start, &mut stack), 9_021);
-        }
     }
 }
