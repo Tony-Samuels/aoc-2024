@@ -183,7 +183,7 @@ unsafe fn inner_p1<const DIM: usize>(
             b'^' => IndexI8::UP,
             b'<' => IndexI8::LEFT,
             b'V' | b'v' => IndexI8::DOWN,
-            b'\n' => continue,
+            b'\n' => IndexI8::ZERO,
             _c => {
                 crate::debug!("Unexpected character {_c} ({})", *_c as char);
                 Unreachable.assume();
@@ -443,7 +443,7 @@ where
             b'^' => IndexI8::UP,
             b'<' => IndexI8::LEFT,
             b'V' | b'v' => IndexI8::DOWN,
-            b'\n' => continue,
+            b'\n' => IndexI8::ZERO,
             _c => {
                 crate::debug!("Unexpected character {_c} ({})", *_c as char);
                 Unreachable.assume();

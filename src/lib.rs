@@ -526,6 +526,8 @@ macro_rules! index_n {
             }
 
             impl<const DIM: usize> [<Index $typ:upper>]<DIM> {
+                pub const ZERO: Self = Self { x: 0, y: 0};
+
                 pub const UP: Self = Self::y(-1);
                 pub const DOWN: Self = Self::y(1);
                 pub const LEFT: Self = Self::x(-1);
